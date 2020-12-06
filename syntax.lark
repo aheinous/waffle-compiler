@@ -1,0 +1,90 @@
+// ?value: dict
+// 		| list
+// 		| string
+// 		| SIGNED_NUMBER      -> number
+// 		| "true"             -> true
+// 		| "false"            -> false
+// 		| "null"             -> null
+
+// list : "[" [value ("," value)*] "]"
+
+// dict : "{" [pair ("," pair)*] "}"
+// pair : string ":" value
+
+// string : ESCAPED_STRING
+
+// %import common.ESCAPED_STRING
+// %import common.SIGNED_NUMBER
+// %import common.WS
+// %ignore WS
+
+
+
+
+?start: block
+
+
+block : statement*
+
+
+
+?statement: assign ";"
+			| decl ";"
+			| decl_init ";"
+
+decl: "var" sym
+
+decl_init: "var" sym "=" exprn
+
+assign: sym "=" exprn
+
+
+?exprn: sum
+?sum: product
+	| sum "+" product -> add
+	| sum "-" product -> sub
+
+
+
+?product: item
+		| product "*" item -> mult
+		|  product "/" item -> div
+
+?item: SIGNED_NUMBER -> num
+		| sym
+		| "+" item
+		| "-" item -> neg
+		| "(" exprn ")"
+
+
+sym: CNAME
+
+
+%import common.ESCAPED_STRING
+%import common.SIGNED_NUMBER
+%import common.CNAME
+%import common.WS
+%ignore WS
+
+
+// ?start: sum
+
+// ?sum: term
+//   | sum "+" term        -> add
+//   | sum "-" term        -> sub
+
+// ?term: item
+//   | term "*"  item      -> mul
+//   | term "/"  item      -> div
+//   | term ">>" item      -> shr
+//   | term "<<" item      -> shl
+
+// ?item: NUMBER           -> num
+//   | "-" item            -> neg
+//   | CNAME               -> var
+//   | "(" start ")"
+
+// %import common.NUMBER
+// %import common.WS
+// %import common.CNAME
+// %ignore WS
