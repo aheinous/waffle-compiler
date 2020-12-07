@@ -20,9 +20,13 @@ program: statement*
 
 if_elif: "if" "(" exprn ")" block ("elif" "(" exprn ")" block)* [ "else"  block  ]
 
-func: "func" sym "(" ")" block
+func: "func" sym "(" decl_arg_list ")" block
 
-func_call: sym "(" ")"
+decl_arg_list: ["var" sym ("," "var" sym )*]
+call_arg_list: [ exprn ("," exprn )*]
+
+
+func_call: sym "(" call_arg_list ")"
 
 decl: "var" sym
 
