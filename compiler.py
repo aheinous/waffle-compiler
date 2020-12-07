@@ -4,7 +4,9 @@ from lark import Lark
 from lark.visitors import Interpreter,  visit_children_decor
 from collections import namedtuple
 
-
+def indent(strlist):
+    for i in range(len(strlist)):
+        strlist[i] = '\t' + strlist[i]
 
 class Instr:
     def run(vm):
@@ -104,7 +106,7 @@ class Pushi(Instr):
         vm.run_push(self._value)
 
     def compile(self, vm):
-        code = vm.comp_push(self._value)
+        code = vm.comp_pushi(self._value)
         return code
 
 
@@ -117,7 +119,7 @@ class Push(Instr):
         vm.run_push(vm.run_ctx[self._sym])
 
     def compile(self, vm):
-        return vm.comp_push(self._sym)
+        return vm.comp_pushi(self._sym)
 
 class IfStatement(Instr):
     def __init__(self, instrs):
@@ -129,9 +131,11 @@ class IfStatement(Instr):
             vm.run(self._instrs)
 
     def compile(self, vm):
-        code = 'if( ' + vm.comp_pop() + '){\n'
-        code += vm.compile(self._instrs)
-        code += '\n}'
+        code = ['if(' + vm.comp_pop() + '){']
+        block = vm.compile(self._instrs)
+        indent(block)
+        code += block
+        code += ['}']
         return code
 
 
@@ -173,6 +177,16 @@ class VirtualMachine:
         self.comp_varCnt += 1
         return code
 
+    def comp_pushi(self, val):
+        self.comp_varStack.append(str(val))
+        return []
+
+    # def comp_pushSym(self, val):
+    #     self.comp_varStack.append(str(val))
+    #     return []
+
+
+
     def comp_pop(self):
         return self.comp_varStack.pop()
 
@@ -213,8 +227,13 @@ class VirtualMachine:
             instrs = self._instrs()
         code = []
         for instr in instrs:
-            code.append(instr.compile(self))
-        return '\n'.join(code)
+            instrCode = instr.compile(self)
+            if isinstance(instrCode, str):
+                code.append(instrCode)
+            else:
+                assert isinstance(instrCode, list)
+                code += instrCode
+        return code
 
 
 
@@ -316,7 +335,7 @@ def run(exprn):
 
 
     print('### compile')
-    code = vm.compile()
+    code = '\n'.join(vm.compile())
     print(code)
 
     print(exprn)
@@ -358,9 +377,11 @@ if __name__ == '__main__':
     ''')
 
     run('''
-        if(0){
-            var x = 2;
+        var z = 1;
+        if(0 + z){
+            z = 2 + 0;
+            z = (2*z) / 2 + 1;
         }
-        var y = 3;
+        var y = 3 + z;
     ''')
 
