@@ -20,6 +20,22 @@ class Instr:
             s += '{} {},'.format(k,v)
         return '(' + s[:-1] + ')'
 
+class Func:
+    def __init__(self, sym, instrs):
+        self._sym = sym
+        self._instrs = instrs
+
+    def run(self, vm):
+        vm.run_ctx.push()
+        vm.run(self._instrs)
+        vm.run_ctx.pop()
+
+    def compile(self, vm):
+        code = ['void {}(){{\n'.format(self._sym)]
+        code += indent(vm.compile(self._instrs))
+        code += ['}']
+        return code
+
 
 class Add(Instr):
     def run(self, vm):
@@ -80,9 +96,11 @@ class Assign(Instr):
         self._sym = sym
 
     def run(self, vm):
-        if self._sym not in vm.run_ctx:
-            raise VMRuntimeError('Attempt to assign to undeclared variable ' + self._sym)
-        vm.run_ctx[self._sym] = vm.run_pop()
+        # if self._sym not in vm.run_ctx:
+        #     raise VMRuntimeError('Attempt to assign to undeclared variable ' + self._sym)
+        # vm.run_ctx[self._sym] = vm.run_pop()
+
+        vm.run_ctx.assign(self._sym, vm.run_pop())
 
     def compile(self, vm):
         return '{} = {};'.format(self._sym, vm.comp_pop())
@@ -92,9 +110,11 @@ class Decl(Instr):
         self._sym = sym
 
     def run(self, vm):
-        if self._sym  in vm.run_ctx:
-            raise VMRuntimeError('Attempt to declare already declared vaiable ' + self._sym)
-        vm.run_ctx[self._sym] = 0
+        # print('sym:',self._sym)
+        # if self._sym in vm.run_ctx.local_scope:
+        #     raise VMRuntimeError('Attempt to declare already declared vaiable ' + self._sym)
+        # vm.run_ctx[self._sym] = 0
+        vm.run_ctx.decl(self._sym, 0)
 
     def compile(self, vm):
         return 'int {} = 0;'.format(self._sym)
@@ -122,22 +142,16 @@ class Push(Instr):
     def compile(self, vm):
         return vm.comp_pushi(self._sym)
 
-# class IfStatement(Instr):
-#     def __init__(self, instrs):
-#         self._instrs = instrs
 
-#     def run(self, vm):
-#         cond = vm.run_pop()
-#         if(cond):
-#             vm.run(self._instrs)
+class Call(Instr):
+    def __init__(self, sym):
+        self._sym = sym
 
-#     def compile(self, vm):
-#         code = ['if(' + vm.comp_pop() + '){']
-#         block = vm.compile(self._instrs)
-#         indent(block)
-#         code += block
-#         code += ['}']
-#         return code
+    def run(self, vm):
+        vm.call(self._sym)
+
+    def compile(self, vm):
+        return self._sym + '();'
 
 
 class IfElse(Instr):
@@ -162,7 +176,6 @@ class IfElse(Instr):
         elseBlk = indent(vm.compile(self._elseBlockInstr))
         if elseBlk:
             code += ['} else {']
-            # code += indent(vm.compile(self._elseBlockInstr))
             code += elseBlk
         code += ['}']
         return code
@@ -188,15 +201,6 @@ class WhileLoop(Instr):
     def compile(self, vm):
         code = []
 
-        # condCode= vm.compile(self._condInstrs)
-        # code += condCode
-        # code += ['while(' + vm.comp_pop() + '){']
-        # blockCode = vm.compile(self._loopInstrs)
-        # blockCode += condCode
-        # indent(blockCode)
-        # code += blockCode
-        # code += ['}']
-
         code += ['while(1){']
         blockCode = vm.compile(self._condInstrs)
         blockCode += ['if(!(' + vm.comp_pop()+')){']
@@ -221,7 +225,6 @@ class RAIIInstrDest:
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
-        # print('__exit__: ', self, vargs)
         self._vm._popInstrDest()
 
     def getInstrs(self):
@@ -232,12 +235,75 @@ class VMRuntimeError(Exception):
     def __init__(self, desc):
         super().__init__(desc)
 
+
+class ScopeMgr:
+    def __init__(self):
+        self._scopeStack = [{}]
+
+    def __str__(self):
+        s = "ScopeMgr:"
+        for scope in self._scopeStack:
+            s += '\n\t' + str(scope)
+        return s
+
+    @property
+    def local_scope(self):
+        return self._scopeStack[-1]
+
+    @property
+    def globalScope(self):
+        return self._scopeStack[0]
+
+    def __contains__(self, sym):
+        for scope in reversed(self._scopeStack):
+            if sym in scope:
+                return True
+        return False
+
+    def putGlobalScope(self, sym, value):
+        if sym in self._scopeStack[0]:
+            raise VMRuntimeError('Global symbol reassignment: ' + sym)
+        self._scopeStack[0][sym] = value
+
+    def __getitem__(self, sym):
+        for scope in reversed(self._scopeStack):
+            if sym in scope:
+                return scope[sym]
+        # assert False
+        raise VMRuntimeError('Symbol not found: ' + str(sym))
+
+    def inLocalScope(self, sym):
+        return sym in self.local_scope
+
+    def decl(self, sym, value):
+        if self.inLocalScope(sym):
+            raise VMRuntimeError('Symbol reassignment: ' + sym)
+        self.local_scope[sym] = value
+
+    def assign(self, sym, value):
+        for scope in reversed(self._scopeStack):
+            if sym in scope:
+                scope[sym] = value
+                return
+        raise VMRuntimeError('Assignment to non-declared symbol: ' + sym)
+
+
+    def push(self):
+        self._scopeStack.append({})
+
+    def pop(self):
+        self._scopeStack.pop()
+
+
+
+
 class VirtualMachine:
     def __init__(self):
         self._instrsDestStack = [[]]
 
         self._run_dataStack = []
-        self.run_ctx = {}
+        # self.run_ctx = {}
+        self.run_ctx = ScopeMgr()
 
         self.comp_varStack = []
         self.comp_varCnt = 0
@@ -272,7 +338,19 @@ class VirtualMachine:
     def addInstr(self, instr):
         self._instrs().append(instr)
 
-    # def addIn
+    def addFunc(self, sym, func):
+        # if sym in self.run_ctx:
+        #     raise VMRuntimeError('Symbol redefinition: ' + sym)
+        # self.run_ctx[sym] = func
+        self.run_ctx.putGlobalScope(sym, func)
+
+    def call(self, sym):
+        # if sym not in self.run_ctx:
+        #     raise VMRuntimeError('Function not found: ' + sym)
+        func = self.run_ctx[sym]
+        # func = self.run_ctx.get(sym)
+
+        func.run(self)
 
     def _instrs(self):
         return self._instrsDestStack[-1]
@@ -297,8 +375,11 @@ class VirtualMachine:
             instr.run(self)
 
     def compile(self, instrs=None):
+        wholeProgram = False
         if instrs is None:
+            wholeProgram = True
             instrs = self._instrs()
+
         code = []
         for instr in instrs:
             instrCode = instr.compile(self)
@@ -307,7 +388,19 @@ class VirtualMachine:
             else:
                 assert isinstance(instrCode, list)
                 code += instrCode
-        return code
+
+        funcCode = []
+
+        if wholeProgram:
+            for sym, func in self.run_ctx.globalScope.items():
+                if not isinstance(func, Func):
+                    continue
+
+                funcCode += func.compile(self)
+                funcCode += ['']
+
+
+        return funcCode + code
 
 
 
@@ -373,13 +466,6 @@ class TreeInterpreter(Interpreter):
         self._vm.addInstr(Assign( getSymValue(tree.children[0])))
 
 
-    # def if_statement(self, tree):
-    #     self.visit(tree.children[0])
-    #     with self._vm.newInstrDest() as instrDest:
-    #         self.visit(tree.children[1])
-    #         ifstatement = IfStatement(instrDest.getInstrs())
-    #     self._vm.addInstr(ifstatement)
-
     def if_elif(self, tree):
         children = tree.children
         elseBlk = []
@@ -410,6 +496,14 @@ class TreeInterpreter(Interpreter):
         whileloop = WhileLoop(cond, loop)
         self._vm.addInstr(whileloop)
 
+    def func(self, tree):
+        sym = getSymValue(tree.children[0])
+        instrs = self.visit_get_instrs(tree.children[1])
+        self._vm.addFunc(sym, Func(sym, instrs))
+
+    def func_call(self, tree):
+        sym = getSymValue(tree.children[0])
+        self._vm.addInstr(Call(sym))
 
 
 
@@ -458,89 +552,132 @@ if __name__ == '__main__':
     parser = Lark(syntax)
 
 
-    run('''
+    # run('''
 
-    var x = 2 + 3;
-    '''
-    )
+    # var x = 2 + 3;
+    # '''
+    # )
 
-    # run('var x = 2;')
+    # # run('var x = 2;')
+
+    # # run('''
+    # #  var x;
+    # #  var x;
+    # # ''')
 
     # run('''
-    #  var x;
-    #  var x;
+    #     var x = 1 * (3+4) - 1000 +10;
+
     # ''')
 
-    run('''
-        var x = 1 * (3+4) - 1000 +10;
-
-    ''')
-
-    run('''
-        var y;
-        var x = 1 + 2 * 3 / 2 - 1;
-        y = 1;
-        var z = y - x;
-    ''')
-
-    run('''
-        var z = 1;
-        if(0 + z){
-            z = 2 + 0;
-            z = (2*z) / 2 + 1;
-        }
-        var y = 3 + z;
-    ''')
-
-    run('''
-        var z = 1;
-        if(0 + z){
-            z = 2 + 0;
-            z = (2*z) / 2 + 1;
-            if(z){
-                z = z+1;
-            }
-        }
-        var y = 3 + z;
-    ''')
-
-
-    run('''
-        var accum = 1;
-        var num = 5;
-        while(num+2){
-            accum = accum*2;
-            num = num -1;
-        }
-    ''')
-
-
-    run('''
-        var x = 2;
-        var y;
-        if(x-2){
-            y =1;
-        }elif(x){
-            y = 2;
-        } elif(x-3) {
-            y = 3;
-            y = y + 1;
-        }else{
-            y = 400;
-        }
-
-    ''')
-
-    run('''
-        if(2){
-            var x = 3;
-        } else {
-
-        }
-    ''')
+    # run('''
+    #     var y;
+    #     var x = 1 + 2 * 3 / 2 - 1;
+    #     y = 1;
+    #     var z = y - x;
+    # ''')
 
     # run('''
-    # if(2){
+    #     var z = 1;
+    #     if(0 + z){
+    #         z = 2 + 0;
+    #         z = (2*z) / 2 + 1;
+    #     }
+    #     var y = 3 + z;
+    # ''')
+
+    # run('''
+    #     var z = 1;
+    #     if(0 + z){
+    #         z = 2 + 0;
+    #         z = (2*z) / 2 + 1;
+    #         if(z){
+    #             z = z+1;
+    #         }
+    #     }
+    #     var y = 3 + z;
+    # ''')
+
+
+    # run('''
+    #     var accum = 1;
+    #     var num = 5;
+    #     while(num+2){
+    #         accum = accum*2;
+    #         num = num -1;
+    #     }
+    # ''')
+
+
+    # run('''
+    #     var x = 2;
+    #     var y;
+    #     if(x-2){
+    #         y =1;
+    #     }elif(x){
+    #         y = 2;
+    #     } elif(x-3) {
+    #         y = 3;
+    #         y = y + 1;
+    #     }else{
+    #         y = 400;
+    #     }
+
+    # ''')
+
+    # run('''
+    #     if(2){
+    #         var x = 3;
+    #     } else {
+
+    #     }
+    # ''')
+
+    # run('''
+    # func foo(){
 
     # }
+    # foo();
     # ''')
+
+    # run('''
+
+    # func bar(){
+    #     x = 4;
+    # }
+
+    # func thing(){
+    #     x = x + 1;
+    # }
+
+    # func foo(){
+    #     x = 2;
+    #     thing();
+    # }
+    # var x = 1;
+    # foo();
+    # ''')
+
+    # run('''
+    # var n = 5;
+    # var res = 1;
+    # func fact(){
+    #     res = res * n;
+    #     n = n -1;
+    #     if(n){
+    #         fact();
+    #     }
+    # }
+    # fact();
+    # ''')
+
+
+    run('''
+        func foo(){
+            var x = 1;
+            y = 10;
+        }
+        var y = 100;
+        var x = 2;
+        foo();
+    ''')

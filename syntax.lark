@@ -11,15 +11,18 @@ program: statement*
 ?statement: assign ";"
 			| decl ";"
 			| decl_init ";"
-			// | "if" "(" exprn ")" block -> if_statement
 			| if_elif
 			| "while" "(" exprn ")" block -> while_loop
 			| block
+			| func
+			| func_call ";"
 
 
 if_elif: "if" "(" exprn ")" block ("elif" "(" exprn ")" block)* [ "else"  block  ]
 
-// if_elif: "if" "(" exprn ")" block ["else"  block]
+func: "func" sym "(" ")" block
+
+func_call: sym "(" ")"
 
 decl: "var" sym
 
@@ -46,6 +49,7 @@ assign: sym "=" exprn
 		| "+" item
 		| "-" item -> neg
 		| "(" exprn ")"
+		| func_call
 
 
 sym: CNAME
@@ -56,26 +60,3 @@ sym: CNAME
 %import common.CNAME
 %import common.WS
 %ignore WS
-
-
-// ?start: sum
-
-// ?sum: term
-//   | sum "+" term        -> add
-//   | sum "-" term        -> sub
-
-// ?term: item
-//   | term "*"  item      -> mul
-//   | term "/"  item      -> div
-//   | term ">>" item      -> shr
-//   | term "<<" item      -> shl
-
-// ?item: NUMBER           -> num
-//   | "-" item            -> neg
-//   | CNAME               -> var
-//   | "(" start ")"
-
-// %import common.NUMBER
-// %import common.WS
-// %import common.CNAME
-// %ignore WS
