@@ -1,25 +1,3 @@
-// ?value: dict
-// 		| list
-// 		| string
-// 		| SIGNED_NUMBER      -> number
-// 		| "true"             -> true
-// 		| "false"            -> false
-// 		| "null"             -> null
-
-// list : "[" [value ("," value)*] "]"
-
-// dict : "{" [pair ("," pair)*] "}"
-// pair : string ":" value
-
-// string : ESCAPED_STRING
-
-// %import common.ESCAPED_STRING
-// %import common.SIGNED_NUMBER
-// %import common.WS
-// %ignore WS
-
-
-
 
 ?start: program
 
@@ -33,14 +11,23 @@ program: statement*
 ?statement: assign ";"
 			| decl ";"
 			| decl_init ";"
-			| "if" "(" exprn ")" block -> if_statement
+			// | "if" "(" exprn ")" block -> if_statement
+			| if_elif
+			| "while" "(" exprn ")" block -> while_loop
 			| block
+
+
+if_elif: "if" "(" exprn ")" block ("elif" "(" exprn ")" block)* [ "else"  block  ]
+
+// if_elif: "if" "(" exprn ")" block ["else"  block]
 
 decl: "var" sym
 
 decl_init: "var" sym "=" exprn
 
 assign: sym "=" exprn
+
+
 
 
 ?exprn: sum
