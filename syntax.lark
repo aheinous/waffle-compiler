@@ -21,16 +21,20 @@
 
 
 
-?start: block
+?start: program
 
 
-block : statement*
+program: statement*
+
+?block : "{" statement* "}"
 
 
 
 ?statement: assign ";"
 			| decl ";"
 			| decl_init ";"
+			| "if" "(" exprn ")" block -> if_statement
+			| block
 
 decl: "var" sym
 
