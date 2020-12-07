@@ -6,13 +6,119 @@ from collections import namedtuple
 
 
 
+class Instr:
+    def run(vm):
+        pass
+    def compile(vm):
+        pass
+    def __repr__(self):
+        s = self.__class__.__name__ + ' '
+        for k,v in vars(self).items():
+            s += '{} {},'.format(k,v)
+        return '(' + s[:-1] + ')'
 
 
-_Instr = namedtuple('Instr', ['op', 'data'])
+class Add(Instr):
+    def run(self, vm):
+        right = vm.run_pop()
+        left = vm.run_pop()
+        vm.run_push(left + right)
+
+    def compile(self, vm):
+        right = vm.comp_pop()
+        left = vm.comp_pop()
+        return vm.comp_push('{} + {}'.format(left, right))
+
+class Sub(Instr):
+    def run(self, vm):
+        right = vm.run_pop()
+        left = vm.run_pop()
+        vm.run_push(left - right)
+
+    def compile(self, vm):
+        right = vm.comp_pop()
+        left = vm.comp_pop()
+        return vm.comp_push('{} - {}'.format(left, right))
+
+class Mult(Instr):
+    def run(self, vm):
+        right = vm.run_pop()
+        left = vm.run_pop()
+        vm.run_push(left * right)
+
+    def compile(self, vm):
+        right = vm.comp_pop()
+        left = vm.comp_pop()
+        return vm.comp_push('{} * {}'.format(left, right))
+
+class Div(Instr):
+    def run(self, vm):
+        right = vm.run_pop()
+        left = vm.run_pop()
+        vm.run_push(left // right)
+
+    def compile(self, vm):
+        right = vm.comp_pop()
+        left = vm.comp_pop()
+        return vm.comp_push('{} / {}'.format(left, right))
 
 
-def Instr(op, *vargs):
-        return _Instr(op, vargs)
+class Neg(Instr):
+    def run(self, vm):
+        operand = vm.run_pop()
+        vm.run_push(-operand)
+
+    def compile(self, vm):
+        operand = vm.comp_pop()
+        return vm.comp_push('-{}'.format(operand))
+
+class Assign(Instr):
+    def __init__(self, sym):
+        self._sym = sym
+
+    def run(self, vm):
+        if self._sym not in vm.run_ctx:
+            raise VMRuntimeError('Attempt to assign to undeclared variable ' + self._sym)
+        vm.run_ctx[self._sym] = vm.run_pop()
+
+    def compile(self, vm):
+        return '{} = {};'.format(self._sym, vm.comp_pop())
+
+class Decl(Instr):
+    def __init__(self, sym):
+        self._sym = sym
+
+    def run(self, vm):
+        if self._sym  in vm.run_ctx:
+            raise VMRuntimeError('Attempt to declare already declared vaiable ' + self._sym)
+        vm.run_ctx[self._sym] = 0
+
+    def compile(self, vm):
+        return 'int {} = 0;'.format(self._sym)
+
+class Pushi(Instr):
+    def __init__(self, value):
+        self._value = value
+
+    def run(self, vm):
+        vm.run_push(self._value)
+
+    def compile(self, vm):
+        code = vm.comp_push(self._value)
+        return code
+
+
+
+class Push(Instr):
+    def __init__(self, sym):
+        self._sym = sym
+
+    def run(self, vm):
+        vm.run_push(vm.run_ctx[self._sym])
+
+    def compile(self, vm):
+        return vm.comp_push(self._sym)
+
 
 
 class VMRuntimeError(Exception):
@@ -22,29 +128,29 @@ class VMRuntimeError(Exception):
 class VirtualMachine:
     def __init__(self):
         self._instrs = []
-        self._dataStack = []
-        self._ctx = {}
 
-        self.c_varStack = []
-        self.c_ctx = {}
-        self.c_code = ''
-        self.c_varCnt = 0
+        self._run_dataStack = []
+        self.run_ctx = {}
 
-    def c_pushVar(self, val):
-        name = 'tmp_{}'.format(self.c_varCnt)
-        self.c_varStack.append(name)
-        self.c_code += 'int {} = {};\n'.format(name, val)
-        self.c_varCnt += 1
+        self.comp_varStack = []
+        self.comp_varCnt = 0
 
-    def c_pop(self):
-        return self.c_varStack.pop()
+    def comp_push(self, val):
+        name = 'tmp_{}'.format(self.comp_varCnt)
+        self.comp_varStack.append(name)
+        code = 'int {} = {};'.format(name, val)
+        self.comp_varCnt += 1
+        return code
+
+    def comp_pop(self):
+        return self.comp_varStack.pop()
 
 
-    def _push(self, data):
-        self._dataStack.append(data)
+    def run_push(self, data):
+        self._run_dataStack.append(data)
 
-    def _pop(self):
-        return self._dataStack.pop()
+    def run_pop(self):
+        return self._run_dataStack.pop()
 
     def addInstr(self, instr):
         self._instrs.append(instr)
@@ -52,126 +158,19 @@ class VirtualMachine:
 
 
     def __str__(self):
-        return 'VM:\n\t' + str(self._instrs) + '\n\t' + str(self._dataStack) \
-                + '\n\t' + str(self._ctx)
+        return 'VM:\n\t' + str(self._instrs) + '\n\t' + str(self._run_dataStack) \
+                + '\n\t' + str(self.run_ctx)
+
 
     def run(self):
         for instr in self._instrs:
-            method = getattr(self, instr.op, None)
-            if method is None:
-                raise ValueError('Unrecognized instr.op: ' + instr.op)
-            method(instr.data)
+            instr.run(self)
 
     def compile(self):
+        code = []
         for instr in self._instrs:
-            method = getattr(self, 'c_' + instr.op, None)
-            if method is None:
-                raise ValueError('Unrecognized instr.op: ' + instr.op)
-            method(instr.data)
-        return self.c_code
-
-
-
-
-
-    def add(self, data):
-        right = self._pop()
-        left = self._pop()
-        self._push(left + right)
-
-    def c_add(self, data):
-        right = self.c_pop()
-        left = self.c_pop()
-        self.c_pushVar('{} + {}'.format(left, right))
-
-    def sub(self, data):
-        right = self._pop()
-        left = self._pop()
-        self._push(left - right)
-
-    def c_sub(self, data):
-        right = self.c_pop()
-        left = self.c_pop()
-        self.c_pushVar('{} - {}'.format(left, right))
-
-
-
-
-    def mult(self, data):
-        right = self._pop()
-        left = self._pop()
-        self._push(left * right)
-
-    def c_mult(self, data):
-        right = self.c_pop()
-        left = self.c_pop()
-        self.c_pushVar('{} * {}'.format(left, right))
-
-
-    def div(self, data):
-        right = self._pop()
-        left = self._pop()
-        self._push(left // right)
-
-
-    def c_div(self, data):
-        right = self.c_pop()
-        left = self.c_pop()
-        self.c_pushVar('{} / {}'.format(left, right))
-
-
-    def neg(self, data):
-        arg = self._pop()
-        self._push(arg * -1)
-
-    def c_neg(self, data):
-        arg = self.c_pop()
-        self.c_pushVar('-{}'.format(arg))
-
-
-    def assign(self, data):
-        sym = data[0]
-        if sym not in self._ctx:
-            raise VMRuntimeError('Attempt to assign to undeclared variable ' + sym)
-        self._ctx[sym] = self._pop()
-
-
-    def c_assign(self, data):
-        sym = data[0]
-        # if sym not in self._ctx:
-        #     raise VMRuntimeError('Attempt to assign to undeclared variable ' + sym)
-        # self._ctx[sym] = self._pop()
-
-        self.c_code += '{} = {};\n'.format(sym, self.c_pop() )
-
-
-
-
-    def decl(self, data):
-        sym = data[0]
-        if sym in self._ctx:
-            raise VMRuntimeError('Attempt to declare already declared vaiable ' + sym)
-        self._ctx[sym] = 0
-
-    def c_decl(self, data):
-        sym = data[0]
-        self.c_code += 'int {};\n'.format(sym)
-
-
-
-    def pushi(self, data):
-        self._push(data[0])
-
-
-    def c_pushi(self, data):
-        self.c_pushVar(data[0])
-
-
-    def push(self, data):
-        self._push(self._ctx[data[0]])
-
-    def c_push(self, data):
-        self.c_push(data[0])
+            code.append(instr.compile(self))
+        return '\n'.join(code)
 
 
 
@@ -188,49 +187,48 @@ class TreeInterpreter(Interpreter):
 
     @visit_children_decor
     def add(self, tree):
-        self._vm.addInstr(Instr('add'))
+        self._vm.addInstr(Add())
 
     @visit_children_decor
     def sub(self, tree):
-        self._vm.addInstr(Instr('sub'))
+        self._vm.addInstr(Sub())
 
     @visit_children_decor
     def mult(self, tree):
-        self._vm.addInstr(Instr('mult'))
+        self._vm.addInstr(Mult())
 
     @visit_children_decor
     def div(self, tree):
-        self._vm.addInstr(Instr('div'))
+        self._vm.addInstr(Div())
 
     @visit_children_decor
     def neg(self, tree):
-        self._vm.addInstr(Instr('neg'))
+        self._vm.addInstr(Neg())
 
 
 
     def assign(self, tree):
         self.visit(tree.children[1])
-        self._vm.addInstr(Instr('assign', getSymValue(tree.children[0])))
+        self._vm.addInstr(Assign( getSymValue(tree.children[0])))
 
 
 
     def num(self, tree):
-        self._vm.addInstr(Instr('pushi', int(tree.children[0]) ))
+        self._vm.addInstr(Pushi( int(tree.children[0]) ))
 
 
     def sym(self, tree):
-        self._vm.addInstr(Instr('push', getSymValue(tree)))
+        self._vm.addInstr(Push( getSymValue(tree)))
 
 
     def decl(self, tree):
         print('decl:', tree)
-        self._vm.addInstr(Instr('decl', getSymValue(tree.children[0])))
-
+        self._vm.addInstr(Decl( getSymValue(tree.children[0])))
 
     def decl_init(self, tree):
         self.visit(tree.children[1])
-        self._vm.addInstr(Instr('decl',    getSymValue(tree.children[0])))
-        self._vm.addInstr(Instr('assign',  getSymValue(tree.children[0])))
+        self._vm.addInstr(Decl( getSymValue(tree.children[0])))
+        self._vm.addInstr(Assign( getSymValue(tree.children[0])))
 
 
 
@@ -267,6 +265,8 @@ def run(exprn):
     code = vm.compile()
     print(code)
 
+    print(exprn)
+
 
     print('---------------------------------------------------------------------')
 
@@ -278,11 +278,11 @@ if __name__ == '__main__':
     parser = Lark(syntax)
 
 
-    # run('''
+    run('''
 
-    # var x;
-    # '''
-    # )
+    var x = 2 + 3;
+    '''
+    )
 
     # run('var x = 2;')
 
@@ -292,13 +292,16 @@ if __name__ == '__main__':
     # ''')
 
     run('''
-        var x = 1 * (3+4) / 1000 -10;
+        var x = 1 * (3+4) - 1000 +10;
 
     ''')
 
-    # run('''
-
-    # ''')
+    run('''
+        var y;
+        var x = 1 + 2 * 3 / 2 - 1;
+        y = 1;
+        var z = y - x;
+    ''')
 
     # run('''
 
