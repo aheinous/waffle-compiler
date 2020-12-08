@@ -1,24 +1,24 @@
 
 
 func foo (x:i32, y:u8): u32 {
-	z: u32 = y * 3;
-	return z;
+	z: u32 = y * 3
+	return z
 }
 
 
 
 
-somevar : u32 = foo();
+somevar : u32 = foo()
 
 
 
 // comment
 
-p :&u8 = b;
+p :&u8 = b
 
-b:u8 = 5;
+b:u8 = 5
 
-b:u8;
+b:u8
 
 
 
@@ -28,15 +28,15 @@ func bar (x:&&u32): void {
 
 }
 
-x = 7;
+x = 7
 
-x:u8 = 4;
+x:u8 = 4
 
 
 if 0 {
-	x = 10;
+	x = 10
 } elif 4+3-8 {
-	x = x+ 2;
+	x = x+ 2
 } else {
 
 }
@@ -45,25 +45,25 @@ if 0 {
 
 
 while x {
-	x = x - 1;
+	x = x - 1
 }
 
 
 
 
 
-ghb: u32 = bar(10);
+ghb: u32 = bar(10)
 
 
 
 
 
 
-//x:u32;
+//x:u32
 
 
 func bar (a:i8): u32 {
-	return 2*a;
+	return 2*a
 }
 
-y:u32 = bar(5+5) + 2;
+y:u32 = bar(5+5) + 2

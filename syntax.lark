@@ -10,17 +10,17 @@ ADDRS : "&"+
 
 type : [ADDRS] CNAME
 
-?statement: assign ";"
-			| decl ";"
-			| decl_init ";"
+?statement: assign
+			| decl
+			| decl_init
 			| if_elif
 			| "while" exprn block -> while_loop
 			| block
 			| func
-			| func_call ";" -> func_call_statement
+			| func_call  -> func_call_statement
 			| rtn
 
-rtn: "return" [exprn] ";"
+rtn: "return" [exprn]
 
 
 if_elif: "if"  exprn  block ("elif"  exprn  block)* [ "else"  block  ]
