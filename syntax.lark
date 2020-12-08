@@ -6,13 +6,15 @@ program: statement*
 
 ?block : "{" statement* "}"
 
+ADDRS : "&"+
 
+type : [ADDRS] CNAME
 
 ?statement: assign ";"
 			| decl ";"
 			| decl_init ";"
 			| if_elif
-			| "while" "(" exprn ")" block -> while_loop
+			| "while" exprn block -> while_loop
 			| block
 			| func
 			| func_call ";" -> func_call_statement
@@ -21,18 +23,19 @@ program: statement*
 rtn: "return" [exprn] ";"
 
 
-if_elif: "if" "(" exprn ")" block ("elif" "(" exprn ")" block)* [ "else"  block  ]
+if_elif: "if"  exprn  block ("elif"  exprn  block)* [ "else"  block  ]
 
-func: "func" sym "(" decl_arg_list ")" block
+func: "func" sym "(" decl_arg_list ")" ":" type block
 
-decl_arg_list: ["var" sym ("," "var" sym )*]
+decl_arg_list: [ sym ":" type ("," sym ":" type)*]
+// default_arg_list
 call_arg_list: [ exprn ("," exprn )*]
 
 func_call: sym "(" call_arg_list ")"
 
-decl: "var" sym
+decl: sym ":" type
 
-decl_init: "var" sym "=" exprn
+decl_init: sym ":" type "=" exprn
 
 assign: sym "=" exprn
 

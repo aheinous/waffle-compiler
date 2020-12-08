@@ -56,12 +56,14 @@ class ScopeMgr:
     def inLocalScope(self, sym):
         return sym in self.local_scope
 
-    def decl(self, sym, value, who):
+    def decl(self, var, value, who):
+        sym = var.value
         if self.inLocalScope(sym):
             raise VMRuntimeException('Symbol reassignment: ' + sym, who.pos)
         self.local_scope[sym] = value
 
-    def assign(self, sym, value, who):
+    def assign(self, var, value, who):
+        sym = var.value
         for scope in reversed(self._scopeStack):
             if sym in scope:
                 scope[sym] = value

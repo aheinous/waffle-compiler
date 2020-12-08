@@ -1,4 +1,5 @@
 
+from collections import namedtuple
 from exceptions import RtnException, VMRuntimeException
 
 
@@ -18,20 +19,20 @@ class VoidType:
 
 
 Void = VoidType()
-
+TypedValue = namedtuple('TypedValue', ['value', 'vtype'])
 
 
 class Func:
-    def __init__(self, sym, args, instrs, pos):
-        self._sym = sym
+    def __init__(self, name, args, instrs, pos):
+        self._name = name
         self._args = args
         self._instrs = instrs
         self.pos = pos
 
     def run(self, vm):
         vm.run_ctx.push()
-        for argName in reversed(self._args):
-            vm.run_ctx.decl(argName, vm.run_pop(), self)
+        for arg in reversed(self._args):
+            vm.run_ctx.decl(arg, vm.run_pop(), self)
         try:
             vm.run(self._instrs)
         except RtnException as e:
@@ -39,7 +40,10 @@ class Func:
         vm.run_ctx.pop()
 
     def compile(self, vm):
-        code = ['void {}({}){{\n'.format(self._sym, ', '.join(('int ' + a for a in self._args)))]
+        argList = ', '.join(('{} {}'.format(a.vtype, a.value) for a in self._args))
+        code = ['{} {}({}){{\n'.format(self._name.vtype, self._name.value, argList)]
+
+
         code += _indent(vm.compile(self._instrs))
         code += ['}']
         return code
@@ -117,33 +121,33 @@ class Neg(Instr):
 
 
 class Assign(Instr):
-    def __init__(self, sym, pos):
+    def __init__(self, name, pos):
         super().__init__(pos)
-        self._sym = sym
+        self._name = name
 
     def run(self, vm):
         val = vm.run_pop()
         if val is Void:
             raise VMRuntimeException('Assigning a value of void', self.pos)
-        vm.run_ctx.assign(self._sym, val, self)
+        vm.run_ctx.assign(self._name, val, self)
 
     def compile(self, vm):
         val = vm.comp_pop()
-        print('assign ', val)
+        # print('assign ', val)
         if val is Void:
             raise VMRuntimeException('Assigning a value of void', self.pos)
-        return '{} = {};'.format(self._sym, val)
+        return '{} = {};'.format(self._name.value, val)
 
 class Decl(Instr):
-    def __init__(self, sym, pos):
+    def __init__(self, var, pos):
         super().__init__(pos)
-        self._sym = sym
+        self._var = var
 
     def run(self, vm):
-        vm.run_ctx.decl(self._sym, 0, self)
+        vm.run_ctx.decl(self._var, 0, self)
 
     def compile(self, vm):
-        return 'int {} = 0;'.format(self._sym)
+        return 'int {} = 0;'.format(self._var.value)
 
 
 class Pushi(Instr):

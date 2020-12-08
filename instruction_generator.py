@@ -6,6 +6,14 @@ def getSymValue(sym):
     assert sym.data == 'sym'
     return str(sym.children[0])
 
+def getTypeValue(vtype):
+    assert vtype.data == 'type'
+    return str(vtype.children[0])
+
+
+def getSymAndType(twoChildren):
+    return TypedValue(getSymValue(twoChildren[0]), getTypeValue(twoChildren[1]))
+
 
 _Position = namedtuple('Position', ['filename', 'ln', 'col'])
 
@@ -84,14 +92,22 @@ class InstructionGenerator(Interpreter):
 
     @add_pos_arg
     def decl(self, tree, pos):
-        print('decl:', tree)
-        self._vm.addInstr(Decl( getSymValue(tree.children[0]), pos))
+        # print('decl:', tree)
+        # sym = tree.children[0]
+        # vtype = tree.children[1]
+        var = getSymAndType(tree.children[0:2])
+
+        self._vm.addInstr(Decl( var, pos))
 
     @add_pos_arg
     def decl_init(self, tree, pos):
-        self.visit(tree.children[1])
-        self._vm.addInstr(Decl( getSymValue(tree.children[0]), pos ))
-        self._vm.addInstr(Assign( getSymValue(tree.children[0]), pos))
+        var = getSymAndType(tree.children[0:2])
+        # sym = tree.children[0]
+        # vtype = tree.children[1]
+        exprn = tree.children[2]
+        self.visit(exprn)
+        self._vm.addInstr(Decl( var, pos ))
+        self._vm.addInstr(Assign( var, pos))
 
 
     @add_pos_arg
@@ -123,17 +139,26 @@ class InstructionGenerator(Interpreter):
         with self._vm.newInstrDest() as instrDest:
             self.visit(tree.children[1])
             loop = instrDest.getInstrs()
-        whileloop = WhileLoop(cond, loop)
+        whileloop = WhileLoop(cond, loop, pos)
         self._vm.addInstr(whileloop)
 
     @add_pos_arg
     def func(self, tree, pos):
+        # args = [getSymValue(arg.children[0]) for arg in tree.children[1].children]
+        treeArgList = tree.children[1].children
+        argList = []
+        for i in range(0, len(treeArgList), 2):
+            argList.append(getSymAndType(treeArgList[i:i+2]))
+
+
         sym = getSymValue(tree.children[0])
-        args = [getSymValue(arg) for arg in tree.children[1].children]
+        rtn_type = getTypeValue(tree.children[2])
+
+        block = tree.children[3]
         # for arg in tree.children[1].children:
         #     args += [getSymValue(arg)]
-        instrs = self.visit_get_instrs(tree.children[-1])
-        func = Func(sym, args, instrs, pos)
+        block = self.visit_get_instrs(block)
+        func = Func(TypedValue(sym, rtn_type), argList, block, pos)
         self._vm.addFunc(sym, func, func)
 
     @add_pos_arg

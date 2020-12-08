@@ -53,18 +53,49 @@ def run(code, fname='<no-file>'):
 
 
 if __name__ == '__main__':
-    with  open('syntax.lark', 'r') as synfile:
-        syntax = ''.join(synfile.readlines())
+    # with  open('syntax.lark', 'r') as synfile:
+    #     syntax = ''.join(synfile.readlines())
 
-    parser = Lark(syntax, parser='lalr', propagate_positions=True)
-
-
-    run('''
-    y = 30;
+    # parser = Lark(syntax, parser='lalr', propagate_positions=True)
 
 
+    # run('''
+    # y = 30;
 
-    ''')
+
+
+    # ''')
+
+    parser = Lark.open('syntax.lark', parser='lalr', propagate_positions=True)
+    src_fname = 'ex1.lang'
+    src = ''
+    with open(src_fname, 'r') as src_file:
+        src = ''.join(src_file.readlines())
+    tree = parser.parse(src)
+    print(tree)
+    print(tree.pretty())
+
+    print("### Tree interpreter")
+    vm = VirtualMachine()
+    gen = InstructionGenerator(vm, src_fname)
+
+    gen.visit(tree)
+    print(vm)
+
+    print('### Run')
+    try:
+        vm.run()
+    except VMRuntimeException as rte:
+        print('ERROR: ' + str(rte))
+
+    print(vm)
+
+
+    print('### compile')
+    code = '\n'.join(vm.compile())
+    print(code)
+
+    print(vm)
 
     # UnexpectedInput
 
