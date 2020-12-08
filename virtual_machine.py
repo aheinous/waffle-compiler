@@ -15,9 +15,9 @@ class RAIIInstrDest:
         return self._instrs
 
 
-class VMRuntimeError(Exception):
-    def __init__(self, desc):
-        super().__init__(desc)
+class VMRuntimeException(Exception):
+	pass
+
 
 
 class ScopeMgr:
@@ -46,22 +46,21 @@ class ScopeMgr:
 
     def putGlobalScope(self, sym, value):
         if sym in self._scopeStack[0]:
-            raise VMRuntimeError('Global symbol reassignment: ' + sym)
+            raise VMRuntimeException('Global symbol reassignment: ' + sym)
         self._scopeStack[0][sym] = value
 
     def __getitem__(self, sym):
         for scope in reversed(self._scopeStack):
             if sym in scope:
                 return scope[sym]
-        # assert False
-        raise VMRuntimeError('Symbol not found: ' + str(sym))
+        raise VMRuntimeException('Symbol not found: ' + str(sym))
 
     def inLocalScope(self, sym):
         return sym in self.local_scope
 
     def decl(self, sym, value):
         if self.inLocalScope(sym):
-            raise VMRuntimeError('Symbol reassignment: ' + sym)
+            raise VMRuntimeException('Symbol reassignment: ' + sym)
         self.local_scope[sym] = value
 
     def assign(self, sym, value):
@@ -69,7 +68,7 @@ class ScopeMgr:
             if sym in scope:
                 scope[sym] = value
                 return
-        raise VMRuntimeError('Assignment to non-declared symbol: ' + sym)
+        raise VMRuntimeException('Assignment to non-declared symbol: ' + sym)
 
 
     def push(self):
@@ -84,21 +83,21 @@ class ScopeMgr:
 class VirtualMachine:
     def __init__(self):
         self._instrsDestStack = [[]]
-        self._run_dataStack = []
+        self._run_stack = []
         self.run_ctx = ScopeMgr()
 
-        self.comp_varStack = []
-        self.comp_varCnt = 0
+        self._comp_stack = []
+        self._comp_tmpcnt = 0
 
     def comp_push(self, val):
-        name = 'tmp_{}'.format(self.comp_varCnt)
-        self.comp_varStack.append(name)
+        name = 'tmp_{}'.format(self._comp_tmpcnt)
+        self._comp_stack.append(name)
         code = 'int {} = {};'.format(name, val)
-        self.comp_varCnt += 1
+        self._comp_tmpcnt += 1
         return code
 
     def comp_pushi(self, val):
-        self.comp_varStack.append(str(val))
+        self._comp_stack.append(str(val))
         return []
 
     # def comp_pushSym(self, val):
@@ -108,14 +107,14 @@ class VirtualMachine:
 
 
     def comp_pop(self):
-        return self.comp_varStack.pop()
+        return self._comp_stack.pop()
 
 
     def run_push(self, data):
-        self._run_dataStack.append(data)
+        self._run_stack.append(data)
 
     def run_pop(self):
-        return self._run_dataStack.pop()
+        return self._run_stack.pop()
 
     def addInstr(self, instr):
         self._instrs().append(instr)
@@ -139,8 +138,8 @@ class VirtualMachine:
 
 
     def __str__(self):
-        return 'VM:\n\t' + str(self._instrs()) + '\n\t' + str(self._run_dataStack) \
-                + '\n\t' + str(self.run_ctx)
+        return 'VM:\n\tInstrns:' + str(self._instrs()) + '\n\tRunStack' + str(self._run_stack) \
+                + '\n\tCompStack' + str(self._comp_stack) + '\n\t' + str(self.run_ctx)
 
 
     def run(self, instrs=None):

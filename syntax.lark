@@ -15,7 +15,10 @@ program: statement*
 			| "while" "(" exprn ")" block -> while_loop
 			| block
 			| func
-			| func_call ";"
+			| func_call ";" -> func_call_statement
+			| rtn
+
+rtn: "return" [exprn] ";"
 
 
 if_elif: "if" "(" exprn ")" block ("elif" "(" exprn ")" block)* [ "else"  block  ]
@@ -24,7 +27,6 @@ func: "func" sym "(" decl_arg_list ")" block
 
 decl_arg_list: ["var" sym ("," "var" sym )*]
 call_arg_list: [ exprn ("," exprn )*]
-
 
 func_call: sym "(" call_arg_list ")"
 

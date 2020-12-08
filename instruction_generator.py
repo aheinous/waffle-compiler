@@ -105,3 +105,13 @@ class InstructionGenerator(Interpreter):
         callArgs = tree.children[1].children
         argInstrs = [self.visit_get_instrs(exprn) for exprn in callArgs]
         self._vm.addInstr(Call(sym, argInstrs))
+
+    @visit_children_decor
+    def func_call_statement(self, tree):
+        self._vm.addInstr(Pop())
+
+    def rtn(self, tree):
+        exprn = []
+        if len(tree.children):
+            exprn = self.visit_get_instrs(tree.children[0])
+        self._vm.addInstr(Rtn(exprn))

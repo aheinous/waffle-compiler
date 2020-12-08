@@ -2,7 +2,7 @@
 
 from lark import Lark
 
-from virtual_machine import VirtualMachine, VMRuntimeError
+from virtual_machine import VirtualMachine, VMRuntimeException
 from instruction_generator import InstructionGenerator
 
 
@@ -18,15 +18,15 @@ def run(exprn):
 
     print("### Tree interpreter")
     vm = VirtualMachine()
-    ti = InstructionGenerator(vm)
+    gen = InstructionGenerator(vm)
 
-    ti.visit(tree)
+    gen.visit(tree)
     print(vm)
 
     print('### Run')
     try:
         vm.run()
-    except VMRuntimeError as rte:
+    except VMRuntimeException as rte:
         print('ERROR: ' + str(rte))
 
     print(vm)
@@ -36,6 +36,9 @@ def run(exprn):
     code = '\n'.join(vm.compile())
     print(code)
 
+    print(vm)
+
+    print('###')
     print(exprn)
 
 
@@ -49,16 +52,25 @@ if __name__ == '__main__':
     parser = Lark(syntax)
 
 
+    # run('''
+    # func f(var y, var a, var b){
+    #     return 3 + a;
+    # }
+
+    # var x = 2*f(3, 10, 100);
+
+
+
+
+    # ''')
+
+
     run('''
-        var z = 0;
-        func foo(var x, var m){
-            z = 2*x;
-            z = z * m;
+        func f(){
+            return;
         }
+        var x = f();
 
-        var p = 10;
-        foo(2, p*10);
-
-
+        f();
 
     ''')

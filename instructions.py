@@ -6,35 +6,17 @@ def _indent(strlist):
 
 
 class Instr:
-    def run(vm):
-        pass
-    def compile(vm):
-        pass
+    def run(self, vm):
+        raise NotImplementedError()
+
+    def compile(self, vm):
+        raise NotImplementedError()
+
     def __repr__(self):
         s = self.__class__.__name__ + ' '
         for k,v in vars(self).items():
             s += '{} {},'.format(k,v)
         return '(' + s[:-1] + ')'
-
-class Func:
-    def __init__(self, sym, args, instrs):
-        self._sym = sym
-        self._args = args
-        self._instrs = instrs
-
-    def run(self, vm):
-        vm.run_ctx.push()
-        for argName in self._args:
-            vm.run_ctx.decl(argName, vm.run_pop())
-        vm.run(self._instrs)
-        vm.run_ctx.pop()
-
-    def compile(self, vm):
-        code = ['void {}({}){{\n'.format(self._sym, ', '.join(('int ' + a for a in self._args)))]
-        code += _indent(vm.compile(self._instrs))
-        code += ['}']
-        return code
-
 
 class Add(Instr):
     def run(self, vm):
@@ -90,6 +72,7 @@ class Neg(Instr):
         operand = vm.comp_pop()
         return vm.comp_push('-{}'.format(operand))
 
+
 class Assign(Instr):
     def __init__(self, sym):
         self._sym = sym
@@ -118,6 +101,7 @@ class Decl(Instr):
     def compile(self, vm):
         return 'int {} = 0;'.format(self._sym)
 
+
 class Pushi(Instr):
     def __init__(self, value):
         self._value = value
@@ -129,8 +113,6 @@ class Pushi(Instr):
         code = vm.comp_pushi(self._value)
         return code
 
-
-
 class Push(Instr):
     def __init__(self, sym):
         self._sym = sym
@@ -141,26 +123,72 @@ class Push(Instr):
     def compile(self, vm):
         return vm.comp_pushi(self._sym)
 
+class RtnException(Exception):
+    pass
 
-class Call(Instr):
-    def __init__(self, sym, argInstrs):
+
+class Func:
+    def __init__(self, sym, args, instrs):
         self._sym = sym
-        self._argInstrs = argInstrs
+        self._args = args
+        self._instrs = instrs
 
     def run(self, vm):
-        for instrs in self._argInstrs:
+        vm.run_ctx.push()
+        for argName in reversed(self._args):
+            vm.run_ctx.decl(argName, vm.run_pop())
+        try:
+            vm.run(self._instrs)
+        except RtnException as e:
+            pass
+        vm.run_ctx.pop()
+
+    def compile(self, vm):
+        code = ['void {}({}){{\n'.format(self._sym, ', '.join(('int ' + a for a in self._args)))]
+        code += _indent(vm.compile(self._instrs))
+        code += ['}']
+        return code
+
+class Call(Instr):
+    def __init__(self, sym, argExprns):
+        self._sym = sym
+        self._argExprns = argExprns
+
+    def run(self, vm):
+        for instrs in self._argExprns:
             vm.run(instrs)
         vm.call(self._sym)
 
     def compile(self, vm):
         callCode = ''
         code = []
-        for argInst in self._argInstrs:
-            code += vm.compile(argInst)
+        for argExprn in self._argExprns:
+            code += vm.compile(argExprn)
             # callCode = vm.comp_pop() + (', '  if callCode else '')
             callCode += (', '  if callCode else '') + vm.comp_pop()
-        code += [ self._sym + '(' + callCode + ');']
+
+        vm.comp_pushi( self._sym + '(' + callCode + ')' )
         return code
+
+class Rtn(Instr):
+    def __init__(self, exprn):
+        self._exprn = exprn
+
+    def run(self, vm):
+        vm.run(self._exprn)
+        raise RtnException()
+
+    def compile(self, vm):
+        vm.compile(self._exprn)
+        return 'return ' + vm.comp_pop() + ';'
+
+class Pop(Instr):
+    def run(self, vm):
+        vm.run_pop()
+
+    def compile(self, vm):
+        vm.comp_pop()
+        return ''
 
 
 class IfElse(Instr):
@@ -188,10 +216,6 @@ class IfElse(Instr):
             code += elseBlk
         code += ['}']
         return code
-
-
-
-
 
 class WhileLoop(Instr):
     def __init__(self, condInstrs, loopInstrs):
