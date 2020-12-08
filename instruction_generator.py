@@ -1,3 +1,4 @@
+from collections import namedtuple
 from lark.visitors import Interpreter,  visit_children_decor
 from instructions import *
 
@@ -6,63 +7,95 @@ def getSymValue(sym):
     return str(sym.children[0])
 
 
+_Position = namedtuple('Position', ['filename', 'ln', 'col'])
+
+class Position(_Position):
+    def __str__(self):
+        return '{}:{}:{}'.format(self.filename, self.ln, self.col)
+
+
+
+def add_pos_arg(func):
+    def wrapper(self, tree):
+        pos = Position(self._fname, tree.line, tree.column)
+        func(self, tree, pos)
+    return wrapper
+
+
 class InstructionGenerator(Interpreter):
-    def __init__(self, vm):
+    def __init__(self, vm, fname):
         super().__init__()
         self._vm = vm
+        self._fname = fname
 
     def visit_get_instrs(self, tree):
         with self._vm.newInstrDest() as instrDest:
             self.visit(tree)
             return instrDest.getInstrs()
 
-    @visit_children_decor
-    def add(self, tree):
-        self._vm.addInstr(Add())
 
-    @visit_children_decor
-    def sub(self, tree):
-        self._vm.addInstr(Sub())
-
-    @visit_children_decor
-    def mult(self, tree):
-        self._vm.addInstr(Mult())
-
-    @visit_children_decor
-    def div(self, tree):
-        self._vm.addInstr(Div())
-
-    @visit_children_decor
-    def neg(self, tree):
-        self._vm.addInstr(Neg())
+    @add_pos_arg
+    def add(self, tree, pos):
+        self.visit_children(tree)
+        self._vm.addInstr(Add(pos))
 
 
+    @add_pos_arg
+    def sub(self, tree, pos):
+        self.visit_children(tree)
+        self._vm.addInstr(Sub(pos))
 
-    def assign(self, tree):
+
+    @add_pos_arg
+    def mult(self, tree, pos):
+        self.visit_children(tree)
+        self._vm.addInstr(Mult(pos))
+
+
+    @add_pos_arg
+    def div(self, tree, pos):
+        self.visit_children(tree)
+        self._vm.addInstr(Div(pos))
+
+
+    @add_pos_arg
+    def neg(self, tree, pos):
+        self.visit_children(tree)
+        self._vm.addInstr(Neg(pos))
+
+
+
+    @add_pos_arg
+    def assign(self, tree, pos):
         self.visit(tree.children[1])
-        self._vm.addInstr(Assign( getSymValue(tree.children[0])))
+        self._vm.addInstr(Assign( getSymValue(tree.children[0]), pos ) )
 
 
 
-    def num(self, tree):
-        self._vm.addInstr(Pushi( int(tree.children[0]) ))
+    @add_pos_arg
+    def num(self, tree, pos):
+        self._vm.addInstr(Pushi( int(tree.children[0]), pos))
 
 
-    def sym(self, tree):
-        self._vm.addInstr(Push( getSymValue(tree)))
+    @add_pos_arg
+    def sym(self, tree, pos):
+        self._vm.addInstr(Push( getSymValue(tree), pos))
 
 
-    def decl(self, tree):
+    @add_pos_arg
+    def decl(self, tree, pos):
         print('decl:', tree)
-        self._vm.addInstr(Decl( getSymValue(tree.children[0])))
+        self._vm.addInstr(Decl( getSymValue(tree.children[0]), pos))
 
-    def decl_init(self, tree):
+    @add_pos_arg
+    def decl_init(self, tree, pos):
         self.visit(tree.children[1])
-        self._vm.addInstr(Decl( getSymValue(tree.children[0])))
-        self._vm.addInstr(Assign( getSymValue(tree.children[0])))
+        self._vm.addInstr(Decl( getSymValue(tree.children[0]), pos ))
+        self._vm.addInstr(Assign( getSymValue(tree.children[0]), pos))
 
 
-    def if_elif(self, tree):
+    @add_pos_arg
+    def if_elif(self, tree, pos):
         children = tree.children
         elseBlk = []
         if len(children) % 2 == 1:
@@ -74,13 +107,14 @@ class InstructionGenerator(Interpreter):
         for i in range(start, -2, -2):
             cond =  self.visit_get_instrs(children[i])
             ifBlk = self.visit_get_instrs(children[i+1])
-            elseBlk = [IfElse(cond, ifBlk, elseBlk)]
+            elseBlk = [IfElse(cond, ifBlk, elseBlk, pos)]
 
         self._vm.addInstr(elseBlk[0])
 
 
 
-    def while_loop(self, tree):
+    @add_pos_arg
+    def while_loop(self, tree, pos):
 
         with self._vm.newInstrDest() as instrDest:
             self.visit(tree.children[0])
@@ -92,26 +126,32 @@ class InstructionGenerator(Interpreter):
         whileloop = WhileLoop(cond, loop)
         self._vm.addInstr(whileloop)
 
-    def func(self, tree):
+    @add_pos_arg
+    def func(self, tree, pos):
         sym = getSymValue(tree.children[0])
         args = [getSymValue(arg) for arg in tree.children[1].children]
         # for arg in tree.children[1].children:
         #     args += [getSymValue(arg)]
         instrs = self.visit_get_instrs(tree.children[-1])
-        self._vm.addFunc(sym, Func(sym, args, instrs))
+        func = Func(sym, args, instrs, pos)
+        self._vm.addFunc(sym, func, func)
 
-    def func_call(self, tree):
+    @add_pos_arg
+    def func_call(self, tree, pos):
         sym = getSymValue(tree.children[0])
         callArgs = tree.children[1].children
         argInstrs = [self.visit_get_instrs(exprn) for exprn in callArgs]
-        self._vm.addInstr(Call(sym, argInstrs))
+        self._vm.addInstr(Call(sym, argInstrs, pos))
 
-    @visit_children_decor
-    def func_call_statement(self, tree):
-        self._vm.addInstr(Pop())
 
-    def rtn(self, tree):
+    @add_pos_arg
+    def func_call_statement(self, tree, pos):
+        self.visit_children(tree)
+        self._vm.addInstr(Pop(pos))
+
+    @add_pos_arg
+    def rtn(self, tree, pos):
         exprn = []
         if len(tree.children):
             exprn = self.visit_get_instrs(tree.children[0])
-        self._vm.addInstr(Rtn(exprn))
+        self._vm.addInstr(Rtn(exprn, pos))

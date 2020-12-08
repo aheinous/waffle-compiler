@@ -1,4 +1,5 @@
 from instructions import Func
+from exceptions import VMRuntimeException
 
 class RAIIInstrDest:
     def __init__(self, vm, instrs):
@@ -14,9 +15,6 @@ class RAIIInstrDest:
     def getInstrs(self):
         return self._instrs
 
-
-class VMRuntimeException(Exception):
-	pass
 
 
 
@@ -44,31 +42,31 @@ class ScopeMgr:
                 return True
         return False
 
-    def putGlobalScope(self, sym, value):
+    def putGlobalScope(self,  sym, value, who):
         if sym in self._scopeStack[0]:
-            raise VMRuntimeException('Global symbol reassignment: ' + sym)
+            raise VMRuntimeException('Global symbol reassignment: ' + sym, who.pos)
         self._scopeStack[0][sym] = value
 
-    def __getitem__(self, sym):
+    def get(self, sym, who):
         for scope in reversed(self._scopeStack):
             if sym in scope:
                 return scope[sym]
-        raise VMRuntimeException('Symbol not found: ' + str(sym))
+        raise VMRuntimeException('Symbol not found: ' + str(sym), who.pos)
 
     def inLocalScope(self, sym):
         return sym in self.local_scope
 
-    def decl(self, sym, value):
+    def decl(self, sym, value, who):
         if self.inLocalScope(sym):
-            raise VMRuntimeException('Symbol reassignment: ' + sym)
+            raise VMRuntimeException('Symbol reassignment: ' + sym, who.pos)
         self.local_scope[sym] = value
 
-    def assign(self, sym, value):
+    def assign(self, sym, value, who):
         for scope in reversed(self._scopeStack):
             if sym in scope:
                 scope[sym] = value
                 return
-        raise VMRuntimeException('Assignment to non-declared symbol: ' + sym)
+        raise VMRuntimeException('Assignment to non-declared symbol: ' + sym, who.pos)
 
 
     def push(self):
@@ -119,11 +117,11 @@ class VirtualMachine:
     def addInstr(self, instr):
         self._instrs().append(instr)
 
-    def addFunc(self, sym, func):
-        self.run_ctx.putGlobalScope(sym, func)
+    def addFunc(self, sym, func, who):
+        self.run_ctx.putGlobalScope(sym, func, who)
 
-    def call(self, sym):
-        func = self.run_ctx[sym]
+    def call(self, sym, who):
+        func = self.run_ctx.get(sym, who)
         func.run(self)
 
     def _instrs(self):

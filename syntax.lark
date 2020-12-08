@@ -65,4 +65,9 @@ sym: CNAME
 %import common.SIGNED_NUMBER
 %import common.CNAME
 %import common.WS
+%import common.C_COMMENT
+%import common.CPP_COMMENT
+
 %ignore WS
+%ignore C_COMMENT
+%ignore CPP_COMMENT

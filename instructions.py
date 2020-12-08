@@ -1,11 +1,54 @@
 
+from exceptions import RtnException, VMRuntimeException
+
+
 def _indent(strlist):
     for i in range(len(strlist)):
         strlist[i] = '\t' + strlist[i]
     return strlist
 
 
+
+class VoidType:
+    def __eq__(self, o: object) -> bool:
+        return isinstance(o, VoidType)
+
+    def __str__(self):
+        return "Void"
+
+
+Void = VoidType()
+
+
+
+class Func:
+    def __init__(self, sym, args, instrs, pos):
+        self._sym = sym
+        self._args = args
+        self._instrs = instrs
+        self.pos = pos
+
+    def run(self, vm):
+        vm.run_ctx.push()
+        for argName in reversed(self._args):
+            vm.run_ctx.decl(argName, vm.run_pop(), self)
+        try:
+            vm.run(self._instrs)
+        except RtnException as e:
+            pass
+        vm.run_ctx.pop()
+
+    def compile(self, vm):
+        code = ['void {}({}){{\n'.format(self._sym, ', '.join(('int ' + a for a in self._args)))]
+        code += _indent(vm.compile(self._instrs))
+        code += ['}']
+        return code
+
+
 class Instr:
+    def __init__(self, pos):
+        self.pos = pos
+
     def run(self, vm):
         raise NotImplementedError()
 
@@ -74,36 +117,38 @@ class Neg(Instr):
 
 
 class Assign(Instr):
-    def __init__(self, sym):
+    def __init__(self, sym, pos):
+        super().__init__(pos)
         self._sym = sym
 
     def run(self, vm):
-        # if self._sym not in vm.run_ctx:
-        #     raise VMRuntimeError('Attempt to assign to undeclared variable ' + self._sym)
-        # vm.run_ctx[self._sym] = vm.run_pop()
-
-        vm.run_ctx.assign(self._sym, vm.run_pop())
+        val = vm.run_pop()
+        if val is Void:
+            raise VMRuntimeException('Assigning a value of void', self.pos)
+        vm.run_ctx.assign(self._sym, val, self)
 
     def compile(self, vm):
-        return '{} = {};'.format(self._sym, vm.comp_pop())
+        val = vm.comp_pop()
+        print('assign ', val)
+        if val is Void:
+            raise VMRuntimeException('Assigning a value of void', self.pos)
+        return '{} = {};'.format(self._sym, val)
 
 class Decl(Instr):
-    def __init__(self, sym):
+    def __init__(self, sym, pos):
+        super().__init__(pos)
         self._sym = sym
 
     def run(self, vm):
-        # print('sym:',self._sym)
-        # if self._sym in vm.run_ctx.local_scope:
-        #     raise VMRuntimeError('Attempt to declare already declared vaiable ' + self._sym)
-        # vm.run_ctx[self._sym] = 0
-        vm.run_ctx.decl(self._sym, 0)
+        vm.run_ctx.decl(self._sym, 0, self)
 
     def compile(self, vm):
         return 'int {} = 0;'.format(self._sym)
 
 
 class Pushi(Instr):
-    def __init__(self, value):
+    def __init__(self, value, pos):
+        super().__init__(pos)
         self._value = value
 
     def run(self, vm):
@@ -113,74 +158,58 @@ class Pushi(Instr):
         code = vm.comp_pushi(self._value)
         return code
 
+
 class Push(Instr):
-    def __init__(self, sym):
+    def __init__(self, sym, pos):
+        super().__init__(pos)
         self._sym = sym
 
     def run(self, vm):
-        vm.run_push(vm.run_ctx[self._sym])
+        vm.run_push(vm.run_ctx.get(self._sym, self))
 
     def compile(self, vm):
         return vm.comp_pushi(self._sym)
 
-class RtnException(Exception):
-    pass
-
-
-class Func:
-    def __init__(self, sym, args, instrs):
-        self._sym = sym
-        self._args = args
-        self._instrs = instrs
-
-    def run(self, vm):
-        vm.run_ctx.push()
-        for argName in reversed(self._args):
-            vm.run_ctx.decl(argName, vm.run_pop())
-        try:
-            vm.run(self._instrs)
-        except RtnException as e:
-            pass
-        vm.run_ctx.pop()
-
-    def compile(self, vm):
-        code = ['void {}({}){{\n'.format(self._sym, ', '.join(('int ' + a for a in self._args)))]
-        code += _indent(vm.compile(self._instrs))
-        code += ['}']
-        return code
 
 class Call(Instr):
-    def __init__(self, sym, argExprns):
+    def __init__(self, sym, argExprns, pos):
+        super().__init__(pos)
         self._sym = sym
         self._argExprns = argExprns
 
     def run(self, vm):
         for instrs in self._argExprns:
             vm.run(instrs)
-        vm.call(self._sym)
+        vm.call(self._sym, self)
 
     def compile(self, vm):
         callCode = ''
         code = []
         for argExprn in self._argExprns:
             code += vm.compile(argExprn)
-            # callCode = vm.comp_pop() + (', '  if callCode else '')
             callCode += (', '  if callCode else '') + vm.comp_pop()
 
         vm.comp_pushi( self._sym + '(' + callCode + ')' )
         return code
 
 class Rtn(Instr):
-    def __init__(self, exprn):
+    def __init__(self, exprn, pos):
+        super().__init__(pos)
         self._exprn = exprn
 
     def run(self, vm):
-        vm.run(self._exprn)
+        if self._exprn:
+            vm.run(self._exprn)
+        else:
+            vm.run_push(Void)
         raise RtnException()
 
     def compile(self, vm):
-        vm.compile(self._exprn)
-        return 'return ' + vm.comp_pop() + ';'
+        if self._exprn:
+            code = vm.compile(self._exprn)
+            code += ['return ' + vm.comp_pop() + ';']
+            return code
+        return 'return;'
 
 class Pop(Instr):
     def run(self, vm):
@@ -192,7 +221,8 @@ class Pop(Instr):
 
 
 class IfElse(Instr):
-    def __init__(self, condInstr, ifBlockInstr, elseBlockInstr):
+    def __init__(self, condInstr, ifBlockInstr, elseBlockInstr, pos):
+        super().__init__(pos)
         self._condInstr = condInstr
         self._ifBlockInstr = ifBlockInstr
         self._elseBlockInstr = elseBlockInstr
@@ -218,7 +248,8 @@ class IfElse(Instr):
         return code
 
 class WhileLoop(Instr):
-    def __init__(self, condInstrs, loopInstrs):
+    def __init__(self, condInstrs, loopInstrs, pos):
+        super().__init__(pos)
         self._condInstrs = condInstrs
         self._loopInstrs = loopInstrs
 
