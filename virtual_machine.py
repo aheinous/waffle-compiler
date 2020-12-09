@@ -2,114 +2,26 @@ from typing import TypeVar
 from instructions import Func
 from exceptions import VMRuntimeException, TypeMismatchException
 from type_checking import *
-
-class RAIIInstrDest:
-    def __init__(self, vm, instrs):
-        self._vm = vm
-        self._instrs = instrs
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exception_type, exception_value, traceback):
-        self._vm._popInstrDest()
-
-    def getInstrs(self):
-        return self._instrs
-
-
-
-
-class ScopeMgr:
-    def __init__(self):
-        self._scopeStack = [{}]
-
-    def __str__(self):
-        s = "ScopeMgr:"
-        for scope in self._scopeStack:
-            s += '\n\t' + str(scope)
-        return s
-
-    @property
-    def local_scope(self):
-        return self._scopeStack[-1]
-
-    @property
-    def globalScope(self):
-        return self._scopeStack[0]
-
-    def __contains__(self, sym):
-        for scope in reversed(self._scopeStack):
-            if sym in scope:
-                return True
-        return False
-
-    # def putGlobalScope(self,  sym, value, who):
-    #     if sym in self._scopeStack[0]:
-    #         raise VMRuntimeException('Global symbol reassignment: ' + sym, who.pos)
-    #     self._scopeStack[0][sym] = value
-
-    def get(self, sym, who):
-        for scope in reversed(self._scopeStack):
-            if sym in scope:
-                return scope[sym]
-        raise VMRuntimeException('Symbol not found: ' + str(sym), who.pos)
-
-    def inLocalScope(self, sym):
-        return sym in self.local_scope
-
-    def decl(self, var, value, who):
-        sym = var.value
-        assert isinstance(value, TypedValue)
-        if self.inLocalScope(sym):
-            raise VMRuntimeException('Symbol reassignment: ' + sym, who.pos)
-        self.local_scope[sym] = value
-
-
-    def test_assign(self, sym, value, who):
-       for scope in reversed(self._scopeStack):
-            if sym in scope:
-                if scope[sym].type != value.type:
-                    raise TypeMismatchException(scope[sym].type, value.type, who.pos)
-
-    def assign(self, sym, value, who):
-        # assert isinstance(var, TypedValue)
-
-        # sym = var.value
-        for scope in reversed(self._scopeStack):
-            if sym in scope:
-                if scope[sym].type != value.type:
-                    raise TypeMismatchException(scope[sym].type, value.type, who.pos)
-                scope[sym] = value
-                return
-        raise VMRuntimeException('Assignment to non-declared symbol: ' + sym, who.pos)
-
-
-    def push(self):
-        self._scopeStack.append({})
-
-    def pop(self):
-        self._scopeStack.pop()
-
+from copy import copy as shallow_copy, deepcopy
 
 
 
 class VirtualMachine:
-    def __init__(self):
-        self._instrsDestStack = [[]]
+    def __init__(self, start_ctx):
+        # self._instrsDestStack = [[]]
         self._run_stack = []
-        self.run_ctx = ScopeMgr()
+        self.run_ctx = start_ctx
         # self._run_call_stack = []
 
         self._comp_stack = []
         self._comp_tmpcnt = 0
-        self.comp_ctx = ScopeMgr() # TODO enter/exit scopes
+        self.comp_ctx = deepcopy(start_ctx) # TODO enter/exit scopes
         self._comp_call_stack = []
 
     def comp_push(self, val):
         assert isinstance(val, TypedValue)
         name = 'tmp_{}'.format(self._comp_tmpcnt)
-        self._comp_stack.append(name)
+        self._comp_stack.append(TypedValue(name, val.type))
         code = '{} {} = {};'.format(val.type, name, val.value)
         self._comp_tmpcnt += 1
         return code
@@ -119,25 +31,20 @@ class VirtualMachine:
         self._comp_stack.append(val)
         return []
 
-    def comp_push_from_ctx(self, sym, who):
+    def comp_push_sym(self, sym, who):
         assert isinstance(sym, str)
-        val = self.comp_ctx.get(sym, who)
-        self._comp_stack.append(val)
+        typed_value = self.comp_ctx.read_symbol(sym, who)
+        typed_sym = TypedSym(sym, typed_value.type)
+        self._comp_stack.append(typed_sym)
         return []
 
 
     def comp_push_fragment(self, sym, fragment, who):
         assert isinstance(sym, str)
-        val = self.comp_ctx.get(sym, who)
+        val = self.comp_ctx.read_symbol(sym, who)
         val = TypedValue(fragment, val.type)
         self._comp_stack.append(val)
         return []
-
-
-
-    # def comp_pushSym(self, val):
-    #     self.comp_varStack.append(str(val))
-    #     return []
 
 
 
@@ -153,57 +60,36 @@ class VirtualMachine:
     def run_pop(self):
         return self._run_stack.pop()
 
-    def addInstr(self, instr):
-        self._instrs().append(instr)
-
-    def add_func(self, sym, func, who):
-        self.run_ctx.decl(sym, func, who)
-        self.comp_ctx.decl(sym, func, who)
+    def run_peek(self):
+        return self._run_stack[-1]
 
 
 
 
     def call(self, sym, who):
-        func = self.run_ctx.get(sym, who).value
+        func = self.run_ctx.read_symbol(sym, who).value
         # self._run_call_stack.append(func)
         func.run(self)
 
-    def comp_push_call_stack(self, func):
-        self._comp_call_stack.append(func)
-
-    def comp_pop_call_stack(self):
-        self._comp_call_stack.pop()
-
-    def comp_peek_call_stack(self):
-        return self._comp_call_stack[-1]
-
-    def _instrs(self):
-        return self._instrsDestStack[-1]
-
-    def newInstrDest(self):
-        self._instrsDestStack.append([])
-        return RAIIInstrDest(self, self._instrsDestStack[-1])
-
-    def _popInstrDest(self):
-        self._instrsDestStack.pop()
 
 
     def __str__(self):
-        return 'VM:\n\tInstrns:' + str(self._instrs()) + '\n\tRunStack' + str(self._run_stack) \
-                + '\n\tCompStack' + str(self._comp_stack) + '\n\t' + str(self.run_ctx)
+        return 'VM:\n\tRunStack' + str(self._run_stack) \
+                + '\n\tCompStack' + str(self._comp_stack) \
+                + '\n\t' + str(self.run_ctx.global_symbols)
 
 
-    def run(self, instrs=None):
-        if instrs is None:
-            instrs = self._instrs()
-        for instr in instrs:
-            instr.run(self)
+    def run(self, instrns=None):
+        if instrns is None:
+            instrns = self.run_ctx.instrns
+        for instrn in instrns:
+            instrn.run(self)
 
     def compile(self, instrs=None):
         wholeProgram = False
         if instrs is None:
             wholeProgram = True
-            instrs = self._instrs()
+            instrs = self.comp_ctx.instrns
 
         code = []
         for instr in instrs:
@@ -217,7 +103,8 @@ class VirtualMachine:
         funcCode = []
 
         if wholeProgram:
-            for sym, func in self.run_ctx.globalScope.items():
+            for func in self.comp_ctx.global_symbols.values():
+                func = func.value
                 if not isinstance(func, Func):
                     continue
 

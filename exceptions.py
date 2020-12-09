@@ -18,3 +18,11 @@ class VMRuntimeException(Exception):
 class TypeMismatchException(VMRuntimeException):
 	def __init__(self, typeLeft, typeRight, pos):
 		super().__init__('Type mismatch: {} {}'.format(typeLeft, typeRight), pos)
+
+class SymbolReassignment(VMRuntimeException):
+	def __init__(self,  pos):
+		super().__init__("Symbol reassignment", pos)
+
+class SymbolNotFound(VMRuntimeException):
+	def __init__(self,  pos):
+		super().__init__("Assignment to undeclared varialbe", pos)
