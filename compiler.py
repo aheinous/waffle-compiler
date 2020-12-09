@@ -1,10 +1,12 @@
 #! /usr/bin/python3
 
+# from instructions import TypedValue
 from lark import Lark
 from lark.exceptions import UnexpectedInput
 
 from virtual_machine import VirtualMachine, VMRuntimeException
 from instruction_generator import InstructionGenerator, Position
+from type_checking import *
 
 
 def run(code, fname='<no-file>'):
@@ -52,6 +54,7 @@ def run(code, fname='<no-file>'):
     print('---------------------------------------------------------------------')
 
 
+
 if __name__ == '__main__':
     # with  open('syntax.lark', 'r') as synfile:
     #     syntax = ''.join(synfile.readlines())
@@ -67,7 +70,7 @@ if __name__ == '__main__':
     # ''')
 
     parser = Lark.open('syntax.lark', parser='lalr', propagate_positions=True)
-    src_fname = 'ex1.lang'
+    src_fname = 'ex2.lang'
     src = ''
     with open(src_fname, 'r') as src_file:
         src = ''.join(src_file.readlines())
@@ -92,8 +95,11 @@ if __name__ == '__main__':
 
 
     print('### compile')
-    code = '\n'.join(vm.compile())
-    print(code)
+    try:
+        code = '\n'.join(vm.compile())
+        print(code)
+    except VMRuntimeException as rte:
+        print('ERROR: ' + str(rte))
 
     print(vm)
 

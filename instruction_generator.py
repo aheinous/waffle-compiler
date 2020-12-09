@@ -1,6 +1,7 @@
 from collections import namedtuple
 from lark.visitors import Interpreter,  visit_children_decor
 from instructions import *
+from type_checking import *
 
 def getSymValue(sym):
     assert sym.data == 'sym'
@@ -81,8 +82,13 @@ class InstructionGenerator(Interpreter):
 
 
     @add_pos_arg
-    def num(self, tree, pos):
-        self._vm.addInstr(Pushi( int(tree.children[0]), pos))
+    def integer(self, tree, pos):
+        self._vm.addInstr(Pushi( TypedValue(int(tree.children[0]), 'int'), pos))
+
+    @add_pos_arg
+    def floating_pt(self, tree, pos):
+        self._vm.addInstr(Pushi( TypedValue(float(tree.children[0]), 'float'), pos))
+
 
 
     @add_pos_arg
@@ -107,7 +113,7 @@ class InstructionGenerator(Interpreter):
         exprn = tree.children[2]
         self.visit(exprn)
         self._vm.addInstr(Decl( var, pos ))
-        self._vm.addInstr(Assign( var, pos))
+        self._vm.addInstr(Assign( var.value, pos))
 
 
     @add_pos_arg
@@ -158,8 +164,10 @@ class InstructionGenerator(Interpreter):
         # for arg in tree.children[1].children:
         #     args += [getSymValue(arg)]
         block = self.visit_get_instrs(block)
-        func = Func(TypedValue(sym, rtn_type), argList, block, pos)
-        self._vm.addFunc(sym, func, func)
+        typed_sym = TypedValue(sym, rtn_type)
+        func = Func(typed_sym, argList, block, pos)
+        typed_func = TypedValue(func, rtn_type)
+        self._vm.add_func(typed_sym, typed_func, func)
 
     @add_pos_arg
     def func_call(self, tree, pos):

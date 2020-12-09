@@ -53,7 +53,8 @@ assign: sym "=" exprn
 		| product "*" item -> mult
 		|  product "/" item -> div
 
-?item: SIGNED_NUMBER -> num
+?item: SIGNED_INT -> integer
+		| SIGNED_FLOAT -> floating_pt
 		| sym
 		| "+" item
 		| "-" item -> neg
@@ -65,7 +66,10 @@ sym: CNAME
 
 
 %import common.ESCAPED_STRING
-%import common.SIGNED_NUMBER
+
+%import common.SIGNED_FLOAT
+%import common.SIGNED_INT
+// %import common.SIGNED_NUMBER
 %import common.CNAME
 %import common.WS
 %import common.C_COMMENT

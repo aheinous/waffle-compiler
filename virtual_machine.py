@@ -1,5 +1,7 @@
+from typing import TypeVar
 from instructions import Func
-from exceptions import VMRuntimeException
+from exceptions import VMRuntimeException, TypeMismatchException
+from type_checking import *
 
 class RAIIInstrDest:
     def __init__(self, vm, instrs):
@@ -42,10 +44,10 @@ class ScopeMgr:
                 return True
         return False
 
-    def putGlobalScope(self,  sym, value, who):
-        if sym in self._scopeStack[0]:
-            raise VMRuntimeException('Global symbol reassignment: ' + sym, who.pos)
-        self._scopeStack[0][sym] = value
+    # def putGlobalScope(self,  sym, value, who):
+    #     if sym in self._scopeStack[0]:
+    #         raise VMRuntimeException('Global symbol reassignment: ' + sym, who.pos)
+    #     self._scopeStack[0][sym] = value
 
     def get(self, sym, who):
         for scope in reversed(self._scopeStack):
@@ -58,14 +60,26 @@ class ScopeMgr:
 
     def decl(self, var, value, who):
         sym = var.value
+        assert isinstance(value, TypedValue)
         if self.inLocalScope(sym):
             raise VMRuntimeException('Symbol reassignment: ' + sym, who.pos)
         self.local_scope[sym] = value
 
-    def assign(self, var, value, who):
-        sym = var.value
+
+    def test_assign(self, sym, value, who):
+       for scope in reversed(self._scopeStack):
+            if sym in scope:
+                if scope[sym].type != value.type:
+                    raise TypeMismatchException(scope[sym].type, value.type, who.pos)
+
+    def assign(self, sym, value, who):
+        # assert isinstance(var, TypedValue)
+
+        # sym = var.value
         for scope in reversed(self._scopeStack):
             if sym in scope:
+                if scope[sym].type != value.type:
+                    raise TypeMismatchException(scope[sym].type, value.type, who.pos)
                 scope[sym] = value
                 return
         raise VMRuntimeException('Assignment to non-declared symbol: ' + sym, who.pos)
@@ -85,20 +99,41 @@ class VirtualMachine:
         self._instrsDestStack = [[]]
         self._run_stack = []
         self.run_ctx = ScopeMgr()
+        # self._run_call_stack = []
 
         self._comp_stack = []
         self._comp_tmpcnt = 0
+        self.comp_ctx = ScopeMgr() # TODO enter/exit scopes
+        self._comp_call_stack = []
 
     def comp_push(self, val):
+        assert isinstance(val, TypedValue)
         name = 'tmp_{}'.format(self._comp_tmpcnt)
         self._comp_stack.append(name)
-        code = 'int {} = {};'.format(name, val)
+        code = '{} {} = {};'.format(val.type, name, val.value)
         self._comp_tmpcnt += 1
         return code
 
     def comp_pushi(self, val):
-        self._comp_stack.append(str(val))
+        assert isinstance(val, TypedValue)
+        self._comp_stack.append(val)
         return []
+
+    def comp_push_from_ctx(self, sym, who):
+        assert isinstance(sym, str)
+        val = self.comp_ctx.get(sym, who)
+        self._comp_stack.append(val)
+        return []
+
+
+    def comp_push_fragment(self, sym, fragment, who):
+        assert isinstance(sym, str)
+        val = self.comp_ctx.get(sym, who)
+        val = TypedValue(fragment, val.type)
+        self._comp_stack.append(val)
+        return []
+
+
 
     # def comp_pushSym(self, val):
     #     self.comp_varStack.append(str(val))
@@ -110,7 +145,9 @@ class VirtualMachine:
         return self._comp_stack.pop()
 
 
+
     def run_push(self, data):
+        assert isinstance(data, TypedValue)
         self._run_stack.append(data)
 
     def run_pop(self):
@@ -119,12 +156,26 @@ class VirtualMachine:
     def addInstr(self, instr):
         self._instrs().append(instr)
 
-    def addFunc(self, sym, func, who):
-        self.run_ctx.putGlobalScope(sym, func, who)
+    def add_func(self, sym, func, who):
+        self.run_ctx.decl(sym, func, who)
+        self.comp_ctx.decl(sym, func, who)
+
+
+
 
     def call(self, sym, who):
-        func = self.run_ctx.get(sym, who)
+        func = self.run_ctx.get(sym, who).value
+        # self._run_call_stack.append(func)
         func.run(self)
+
+    def comp_push_call_stack(self, func):
+        self._comp_call_stack.append(func)
+
+    def comp_pop_call_stack(self):
+        self._comp_call_stack.pop()
+
+    def comp_peek_call_stack(self):
+        return self._comp_call_stack[-1]
 
     def _instrs(self):
         return self._instrsDestStack[-1]

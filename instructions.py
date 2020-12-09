@@ -1,6 +1,7 @@
 
 from collections import namedtuple
 from exceptions import RtnException, VMRuntimeException
+from type_checking import *
 
 
 def _indent(strlist):
@@ -10,21 +11,10 @@ def _indent(strlist):
 
 
 
-class VoidType:
-    def __eq__(self, o: object) -> bool:
-        return isinstance(o, VoidType)
-
-    def __str__(self):
-        return "Void"
-
-
-Void = VoidType()
-TypedValue = namedtuple('TypedValue', ['value', 'vtype'])
-
-
 class Func:
-    def __init__(self, name, args, instrs, pos):
-        self._name = name
+    def __init__(self, typed_sym, args, instrs, pos):
+        assert isinstance(typed_sym, TypedValue)
+        self._typed_sym = typed_sym
         self._args = args
         self._instrs = instrs
         self.pos = pos
@@ -40,12 +30,11 @@ class Func:
         vm.run_ctx.pop()
 
     def compile(self, vm):
-        argList = ', '.join(('{} {}'.format(a.vtype, a.value) for a in self._args))
-        code = ['{} {}({}){{\n'.format(self._name.vtype, self._name.value, argList)]
-
-
+        argList = ', '.join(('{} {}'.format(a.type, a.value) for a in self._args))
+        code = ['{} {}({}){{\n'.format(self._typed_sym.type, self._typed_sym.value, argList)]
         code += _indent(vm.compile(self._instrs))
         code += ['}']
+        # vm.comp_ctx
         return code
 
 
@@ -121,38 +110,43 @@ class Neg(Instr):
 
 
 class Assign(Instr):
-    def __init__(self, name, pos):
+    def __init__(self, sym, pos):
         super().__init__(pos)
-        self._name = name
+        assert  isinstance(sym, str)
+        self._sym = sym
 
     def run(self, vm):
         val = vm.run_pop()
         if val is Void:
             raise VMRuntimeException('Assigning a value of void', self.pos)
-        vm.run_ctx.assign(self._name, val, self)
+        vm.run_ctx.assign(self._sym, val, self)
 
     def compile(self, vm):
         val = vm.comp_pop()
         # print('assign ', val)
         if val is Void:
             raise VMRuntimeException('Assigning a value of void', self.pos)
-        return '{} = {};'.format(self._name.value, val)
+        vm.comp_ctx.test_assign(self._sym, val, self)
+        return '{} = {};'.format(self._sym, val.value)
 
 class Decl(Instr):
     def __init__(self, var, pos):
         super().__init__(pos)
+        assert isinstance(var, TypedValue)
         self._var = var
 
     def run(self, vm):
-        vm.run_ctx.decl(self._var, 0, self)
+        vm.run_ctx.decl(self._var, TypedValue(0, self._var.type), self)
 
     def compile(self, vm):
-        return 'int {} = 0;'.format(self._var.value)
+        vm.comp_ctx.decl(self._var, TypedValue(0, self._var.type), self)
+        return '{} {};'.format(self._var.type, self._var.value)
 
 
 class Pushi(Instr):
     def __init__(self, value, pos):
         super().__init__(pos)
+        assert isinstance(value, TypedValue)
         self._value = value
 
     def run(self, vm):
@@ -166,13 +160,14 @@ class Pushi(Instr):
 class Push(Instr):
     def __init__(self, sym, pos):
         super().__init__(pos)
+        # assert isinstance(sym, TypedValue)
         self._sym = sym
 
     def run(self, vm):
         vm.run_push(vm.run_ctx.get(self._sym, self))
 
     def compile(self, vm):
-        return vm.comp_pushi(self._sym)
+        return vm.comp_push_from_ctx(self._sym, self)
 
 
 class Call(Instr):
@@ -187,14 +182,14 @@ class Call(Instr):
         vm.call(self._sym, self)
 
     def compile(self, vm):
-        callCode = ''
-        code = []
+        call_code = ''
+        prep_code = []
         for argExprn in self._argExprns:
-            code += vm.compile(argExprn)
-            callCode += (', '  if callCode else '') + vm.comp_pop()
-
-        vm.comp_pushi( self._sym + '(' + callCode + ')' )
-        return code
+            prep_code += vm.compile(argExprn)
+            call_code += (', '  if call_code else '') + str(vm.comp_pop().value)
+        call_code = '{}({})'.format(self._sym, call_code)
+        vm.comp_push_fragment( self._sym, call_code, self )
+        return prep_code
 
 class Rtn(Instr):
     def __init__(self, exprn, pos):
