@@ -180,7 +180,7 @@ def op_cpp_repr(op) -> str:
                 Div, '/'
                 )
 
-def verify_assign(l_type, r_type, pos):
+def check_assign_okay(l_type, r_type, pos):
     assert isinstance(l_type, _Type)
     assert isinstance(r_type, _Type)
     if not match( (l_type, r_type),
@@ -194,7 +194,7 @@ def verify_assign(l_type, r_type, pos):
 
 def assign(left, right, pos):
     l_type, r_type = left.type, right.type
-    verify_assign(l_type, r_type, pos)
+    check_assign_okay(l_type, r_type, pos)
     value = right.value
 
     # print('class',value.__class__)

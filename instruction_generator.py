@@ -1,26 +1,8 @@
 from scope_mgr import ScopeMgr
 from lark.visitors import Interpreter
-from instructions import *
-from type_system import *
 from position import Position
-
-# import re
-# import codecs
-
-# _ESCAPE_SEQUENCE_RE = re.compile(r'''
-#     ( \\U........      # 8-digit hex escapes
-#     | \\u....          # 4-digit hex escapes
-#     | \\x..            # 2-digit hex escapes
-#     | \\[0-7]{1,3}     # Octal escapes
-#     | \\N\{[^}]+\}     # Unicode characters by name
-#     | \\[\\'"abfnrtv]  # Single-character escapes
-#     )''', re.UNICODE | re.VERBOSE)
-
-# def _decode_escapes(s):
-#     def decode_match(match):
-#         return codecs.decode(match.group(0), 'unicode-escape')
-
-#     return _ESCAPE_SEQUENCE_RE.sub(decode_match, s)
+from instructions import Func, Assign, Push, Pushi, Pop, Decl, IfElse, WhileLoop, Rtn, Call, BinOp, UnaryOp
+from type_system import make_type, make_value, TypedValue, TypedSym, Add, Sub, Mul, Div, Neg, Int, Float, String
 
 def _get_sym(sym):
     assert sym.data == 'sym'
@@ -81,7 +63,6 @@ class InstructionGenerator(Interpreter):
         self.visit_children(tree)
         mul = Mul()
         binop = BinOp(mul, pos)
-        # self._scope_mgr.add_instrn(BinOp(Mul(), pos))
         self._scope_mgr.add_instrn(binop)
 
 
@@ -109,25 +90,18 @@ class InstructionGenerator(Interpreter):
     def integer(self, tree, pos):
         str_repr = str(tree.children[0])
         typed_value = make_value(str_repr, Int(), pos)
-
-        # self._scope_mgr.add_instrn(Pushi( TypedValue(int(tree.children[0]), Int()), pos))
         self._scope_mgr.add_instrn(Pushi(typed_value, pos))
 
     @add_position_arg
     def floating_pt(self, tree, pos):
         str_repr = str(tree.children[0])
         typed_value = make_value(str_repr, Float(), pos)
-        # self._scope_mgr.add_instrn(Pushi( TypedValue(float(tree.children[0]), Float()), pos))
         self._scope_mgr.add_instrn(Pushi(typed_value, pos))
 
     @add_position_arg
     def string(self, tree, pos):
         str_repr = str(tree.children[0])
         typed_value = make_value(str_repr, String(), pos)
-        # s = str(tree.children[0])
-        # s = _decode_escapes(str(tree.children[0])[1:-1])
-        # print(s)
-        # self._scope_mgr.add_instrn(Pushi( TypedValue(s, String), pos))
         self._scope_mgr.add_instrn(Pushi(typed_value, pos))
 
 
@@ -172,14 +146,6 @@ class InstructionGenerator(Interpreter):
 
     @add_position_arg
     def while_loop(self, tree, pos):
-
-        # with self._vm.newInstrDest() as instrDest:
-        #     self.visit(tree.children[0])
-        #     cond = instrDest.getInstrs()
-
-        # with self._vm.newInstrDest() as instrDest:
-        #     self.visit(tree.children[1])
-        #     loop = instrDest.getInstrs()
         children = tree.children
         cond = self._visit_get_instrs(children[0])
         loop = self._visit_get_instrs(children[1])
@@ -189,7 +155,6 @@ class InstructionGenerator(Interpreter):
 
     @add_position_arg
     def func(self, tree, pos):
-        # args = [getSymValue(arg.children[0]) for arg in tree.children[1].children]
         treeArgList = tree.children[1].children
         argList = []
         for i in range(0, len(treeArgList), 2):
@@ -200,17 +165,14 @@ class InstructionGenerator(Interpreter):
         rtn_type = _get_type(tree.children[2], pos)
 
         block = tree.children[3]
-        # for arg in tree.children[1].children:
-        #     args += [getSymValue(arg)]
         block = self._visit_get_instrs(block)
 
-        # make sure we end with a Rtn
+        '''make sure we end with a Rtn'''
         if not block or not isinstance(block[-1], Rtn):
             block += [Rtn([], pos)]
         typed_sym = TypedSym(sym, rtn_type)
         func = Func(typed_sym, argList, block, pos)
         typed_func = TypedValue(func, rtn_type)
-        # self._scope_mgr.add_func(typed_sym, typed_func, func)
         self._scope_mgr.init_symbol(typed_sym, typed_func, pos)
 
     @add_position_arg

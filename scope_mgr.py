@@ -1,6 +1,8 @@
 from exceptions import SymbolNotFound, SymbolReassignment
-# from type_checking import Void, TypedValue, TypedSym, check_types_for_assign
-from type_system import TypedValue, TypedSym, verify_assign as type_sys_verify_assign, assign as type_sys_assign
+from type_system import (   TypedValue,
+                            check_assign_okay as type_sys_verify_assign,
+                            assign as type_sys_assign
+)
 
 class _Scope:
     def __init__(self) -> None:
@@ -50,14 +52,12 @@ class ScopeMgr:
     def assign_symbol(self, sym, typed_value, pos):
         for scope in reversed(self._scope_stack):
             if sym in scope.symbols:
-                # check_types_for_assign(scope.symbols[sym], typed_value, pos)
                 new_value = type_sys_assign(scope.symbols[sym], typed_value, pos)
-                # scope.symbols[sym] = TypedValue(typed_value.value, scope.symbols[sym].type)
                 scope.symbols[sym] = new_value
                 return
         raise SymbolNotFound(pos)
 
-    def verify_assign(self, sym, something_typed, pos):
+    def check_assign_okay(self, sym, something_typed, pos):
         for scope in reversed(self._scope_stack):
             if sym in scope.symbols:
                 type_sys_verify_assign(scope.symbols[sym].type, something_typed.type, pos)
@@ -69,11 +69,6 @@ class ScopeMgr:
             if sym in scope.symbols:
                 return scope.symbols[sym]
         raise SymbolNotFound(pos)
-
-
-    # def get_symbol_type(self, sym, pos):
-    #     for scope in reversed(self._scope_stack):
-    #         if sym in scope.symbols:
 
     def add_instrn(self, instrn):
         self._cur_scope.instrns.append(instrn)

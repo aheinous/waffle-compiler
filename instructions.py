@@ -1,8 +1,5 @@
-
-from collections import namedtuple
-from exceptions import RtnException, VMRuntimeException
-# from type_checking import *
-from type_system import *
+from exceptions import RtnException
+from type_system import TypedValue, TypedSym, TypedStr, Void, op_res, op_res_type, op_cpp_repr, type_cpp_repr, check_assign_okay
 
 def _indent(strlist):
     for i in range(len(strlist)):
@@ -104,16 +101,6 @@ class UnaryOp(Instrn):
             )
         )
 
-# class Neg(Instrn):
-#     def run(self, vm):
-#         operand = vm.run_pop()
-#         vm.run_push(operand.neg(self))
-
-#     def compile(self, vm):
-#         operand = vm.comp_pop()
-#         return vm.comp_push('-{}'.format(operand))
-
-
 class Assign(Instrn):
     def __init__(self, sym, pos):
         super().__init__(pos)
@@ -122,16 +109,11 @@ class Assign(Instrn):
 
     def run(self, vm):
         typed_value = vm.run_pop()
-        # if val is Void: # TODO ???
-            # raise VMRuntimeException('Assigning a value of void', self.pos)
         vm.run_ctx.assign_symbol(self._sym, typed_value, self)
 
     def compile(self, vm):
         typed_str = vm.comp_pop()
-        # print('assign ', typed_str)
-        # if typed_str is Void:
-        #     raise VMRuntimeException('Assigning a value of void', self.pos)
-        vm.comp_ctx.verify_assign(self._sym, typed_str, self.pos)
+        vm.comp_ctx.check_assign_okay(self._sym, typed_str, self.pos)
         return '{} = {};'.format(self._sym, typed_str.string)
 
 class Decl(Instrn):
@@ -141,11 +123,9 @@ class Decl(Instrn):
         self._typed_sym = typed_sym
 
     def run(self, vm):
-        # vm.run_ctx.decl(self._typed_sym, TypedValue(0, self._typed_sym.type), self)
         vm.run_ctx.declare_symbol(self._typed_sym, self)
 
     def compile(self, vm):
-        # vm.comp_ctx.decl(self._typed_sym, TypedValue(0, self._typed_sym.type), self)
         vm.comp_ctx.declare_symbol(self._typed_sym, self)
         type_repr = type_cpp_repr(self._typed_sym.type)
         return '{} {};'.format(type_repr, self._typed_sym.sym)
@@ -168,7 +148,6 @@ class Pushi(Instrn):
 class Push(Instrn):
     def __init__(self, sym, pos):
         super().__init__(pos)
-        # assert isinstance(sym, TypedValue)
         self._sym = sym
 
     def run(self, vm):
@@ -209,7 +188,7 @@ class Rtn(Instrn):
             vm.run(self._exprn)
         else:
             vm.run_push(TypedValue(None, Void()))
-        verify_assign(vm.run_ctx.func.type, vm.run_peek().type, self.pos)
+        check_assign_okay(vm.run_ctx.func.type, vm.run_peek().type, self.pos)
         raise RtnException()
 
     def compile(self, vm):
@@ -217,7 +196,7 @@ class Rtn(Instrn):
         if self._exprn:
             code = vm.compile(self._exprn)
             rtn_val = vm.comp_pop()
-        verify_assign(vm.comp_ctx.func.type, rtn_val.type, self)
+        check_assign_okay(vm.comp_ctx.func.type, rtn_val.type, self)
         return 'return {};'.format(rtn_val.string if self._exprn else '')
 
 class Pop(Instrn):

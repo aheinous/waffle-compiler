@@ -1,9 +1,6 @@
-from typing import TypeVar
 from instructions import Func
-from exceptions import VMRuntimeException, TypeMismatchException
-# from type_checking import *
 from type_system import *
-from copy import copy as shallow_copy, deepcopy
+from copy import deepcopy
 
 
 
@@ -14,7 +11,7 @@ class VirtualMachine:
 
         self._comp_stack = []
         self._comp_tmpcnt = 0
-        self.comp_ctx = deepcopy(start_ctx) # TODO enter/exit scopes
+        self.comp_ctx = deepcopy(start_ctx)
         self._comp_call_stack = []
 
 
@@ -26,7 +23,6 @@ class VirtualMachine:
     def comp_push(self, val):
         assert isinstance(val, TypedStr)
         name = 'tmp_{}'.format(self._comp_tmpcnt)
-        # self._comp_stack.append(TypedValue(name, val.type))
         self._comp_push(TypedStr(name, val.type))
         code = '{} {} = {};'.format(val.type_repr, name, val.string)
         self._comp_tmpcnt += 1
@@ -71,10 +67,8 @@ class VirtualMachine:
 
 
 
-
     def call(self, sym, pos):
         func = self.run_ctx.read_symbol(sym, pos).value
-        # self._run_call_stack.append(func)
         func.run(self)
 
 
