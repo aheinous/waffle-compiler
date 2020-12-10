@@ -59,6 +59,7 @@ assign: sym "=" exprn
 		| "+" item
 		| "-" item -> neg
 		| "(" exprn ")"
+		| ESCAPED_STRING -> string
 		| func_call
 
 

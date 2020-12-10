@@ -1,6 +1,6 @@
 from exceptions import SymbolNotFound, SymbolReassignment
-from type_checking import Void, TypedValue, TypedSym, check_types_for_assign
-
+# from type_checking import Void, TypedValue, TypedSym, check_types_for_assign
+from type_system import TypedValue, TypedSym, verify_assign as type_sys_verify_assign, assign as type_sys_assign
 
 class _Scope:
     def __init__(self) -> None:
@@ -37,39 +37,41 @@ class ScopeMgr:
     def _cur_scope(self):
         return self._scope_stack[-1]
 
-    def init_symbol(self, typed_sym, typed_value, who):
-        self.declare_symbol(typed_sym, who)
-        self.assign_symbol(typed_sym.name, typed_value, who)
+    def init_symbol(self, typed_sym, typed_value, pos):
+        self.declare_symbol(typed_sym, pos)
+        self.assign_symbol(typed_sym.sym, typed_value, pos)
 
-    def declare_symbol(self, typed_sym, who):
-        if typed_sym.name in self:
-            raise SymbolReassignment(who.pos)
-        self._cur_scope.symbols[typed_sym.name] = TypedValue(Void, typed_sym.type)
+    def declare_symbol(self, typed_sym, pos):
+        if typed_sym.sym in self._cur_scope.symbols:
+            raise SymbolReassignment(pos)
+        self._cur_scope.symbols[typed_sym.sym] = TypedValue(None, typed_sym.type)
 
 
-    def assign_symbol(self, sym, typed_value, who):
+    def assign_symbol(self, sym, typed_value, pos):
         for scope in reversed(self._scope_stack):
             if sym in scope.symbols:
-                check_types_for_assign(scope.symbols[sym], typed_value, who)
-                scope.symbols[sym] = TypedValue(typed_value.value, scope.symbols[sym].type)
+                # check_types_for_assign(scope.symbols[sym], typed_value, pos)
+                new_value = type_sys_assign(scope.symbols[sym], typed_value, pos)
+                # scope.symbols[sym] = TypedValue(typed_value.value, scope.symbols[sym].type)
+                scope.symbols[sym] = new_value
                 return
-        raise SymbolNotFound(who.pos)
+        raise SymbolNotFound(pos)
 
-    def verify_assign(self, sym, something_typed, who):
+    def verify_assign(self, sym, something_typed, pos):
         for scope in reversed(self._scope_stack):
             if sym in scope.symbols:
-                check_types_for_assign(scope.symbols[sym], something_typed, who)
+                type_sys_verify_assign(scope.symbols[sym].type, something_typed.type, pos)
                 return
-        raise SymbolNotFound(who.pos)
+        raise SymbolNotFound(pos)
 
-    def read_symbol(self, sym, who) -> TypedValue:
+    def read_symbol(self, sym, pos) -> TypedValue:
         for scope in reversed(self._scope_stack):
             if sym in scope.symbols:
                 return scope.symbols[sym]
-        raise SymbolNotFound(who.pos)
+        raise SymbolNotFound(pos)
 
 
-    # def get_symbol_type(self, sym, who):
+    # def get_symbol_type(self, sym, pos):
     #     for scope in reversed(self._scope_stack):
     #         if sym in scope.symbols:
 

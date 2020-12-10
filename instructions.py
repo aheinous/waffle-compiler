@@ -1,8 +1,8 @@
 
 from collections import namedtuple
 from exceptions import RtnException, VMRuntimeException
-from type_checking import *
-
+# from type_checking import *
+from type_system import *
 
 def _indent(strlist):
     for i in range(len(strlist)):
@@ -34,8 +34,8 @@ class Func:
         for arg in self._args:
             vm.comp_ctx.declare_symbol(arg, self)
         blk_code = vm.compile(self._instrs)
-        argList = ', '.join(('{} {}'.format(a.type, a.value) for a in self._args))
-        code = ['{} {}({}){{'.format(self._typed_sym.type, self._typed_sym.value, argList)]
+        argList = ', '.join(('{} {}'.format(a.type_repr, a.string) for a in self._args))
+        code = ['{} {}({}){{'.format(self._typed_sym.type_repr, self._typed_sym.sym, argList)]
         code += _indent(blk_code)
         code += ['}']
         vm.comp_ctx.pop_scope()
@@ -43,7 +43,7 @@ class Func:
         return code
 
 
-class Instr:
+class Instrn:
     def __init__(self, pos):
         self.pos = pos
 
@@ -59,104 +59,82 @@ class Instr:
             s += '{} {},'.format(k,v)
         return '(' + s[:-1] + ')'
 
-class Add(Instr):
+
+class BinOp(Instrn):
+    def __init__(self, op, pos):
+        super().__init__(pos)
+        self.op = op
+
     def run(self, vm):
         right = vm.run_pop()
         left = vm.run_pop()
-        vm.run_push(left.add(right, self))
+        vm.run_push(op_res(self.op, left, right, self))
 
     def compile(self, vm):
         right = vm.comp_pop()
         left = vm.comp_pop()
+        res_type = op_res_type(self.op, left.type, right.type, self)
+        op_repr = op_cpp_repr(self.op)
         return vm.comp_push(
-            TypedValue(
-                '{} + {}'.format(left.value, right.value),
-                left.type # TODO proper type
-            )
-        )
-
-class Sub(Instr):
-    def run(self, vm):
-        right = vm.run_pop()
-        left = vm.run_pop()
-        vm.run_push(left.sub(right, self))
-
-    def compile(self, vm):
-        right = vm.comp_pop()
-        left = vm.comp_pop()
-        return vm.comp_push(
-            TypedValue(
-                '{} - {}'.format(left.value, right.value),
-                left.type # TODO proper type
+            TypedStr(
+                '{} {} {}'.format(left.string, op_repr, right.string),
+                res_type
             )
         )
 
 
-class Mult(Instr):
-    def run(self, vm):
-        right = vm.run_pop()
-        left = vm.run_pop()
-        vm.run_push(left.mul(right, self))
 
-    def compile(self, vm):
-        right = vm.comp_pop()
-        left = vm.comp_pop()
-        return vm.comp_push(
-            TypedValue(
-                '{} * {}'.format(left.value, right.value),
-                left.type # TODO proper type
-            )
-        )
+class UnaryOp(Instrn):
+    def __init__(self, op, pos):
+        super().__init__(pos)
+        self.op = op
 
-class Div(Instr):
-    def run(self, vm):
-        right = vm.run_pop()
-        left = vm.run_pop()
-
-        vm.run_push(left.div(right, self))
-
-    def compile(self, vm):
-        right = vm.comp_pop()
-        left = vm.comp_pop()
-        return vm.comp_push(
-            TypedValue(
-                '{} / {}'.format(left.value, right.value),
-                left.type # TODO proper type
-            )
-        )
-
-
-class Neg(Instr):
     def run(self, vm):
         operand = vm.run_pop()
-        vm.run_push(operand.neg(self))
+        vm.run_push(op_res(self.op, operand, self))
 
     def compile(self, vm):
-        operand = vm.comp_pop()
-        return vm.comp_push('-{}'.format(operand))
+        operand = vm.run_pop()
+        res_type = op_res_type(self.op, operand, self)
+        op_repr = op_cpp_repr(self.op)
+        return vm.comp_push(
+            TypedValue(
+                '{} {}'.format(op_repr, operand.value),
+                res_type
+            )
+        )
+
+# class Neg(Instrn):
+#     def run(self, vm):
+#         operand = vm.run_pop()
+#         vm.run_push(operand.neg(self))
+
+#     def compile(self, vm):
+#         operand = vm.comp_pop()
+#         return vm.comp_push('-{}'.format(operand))
 
 
-class Assign(Instr):
+class Assign(Instrn):
     def __init__(self, sym, pos):
         super().__init__(pos)
         assert  isinstance(sym, str)
         self._sym = sym
 
     def run(self, vm):
-        val = vm.run_pop()
-        if val is Void:
-            raise VMRuntimeException('Assigning a value of void', self.pos)
-        vm.run_ctx.assign_symbol(self._sym, val, self)
+        typed_value = vm.run_pop()
+        # if val is Void: # TODO ???
+            # raise VMRuntimeException('Assigning a value of void', self.pos)
+        vm.run_ctx.assign_symbol(self._sym, typed_value, self)
 
     def compile(self, vm):
-        val = vm.comp_pop()
-        # print('assign ', val)
-        if val is Void:
-            raise VMRuntimeException('Assigning a value of void', self.pos)
-        vm.comp_ctx.verify_assign(self._sym, val, self)
-        return '{} = {};'.format(self._sym, val.value)
+        typed_str = vm.comp_pop()
+        # print('assign ', typed_str)
+        # if typed_str is Void:
+        #     raise VMRuntimeException('Assigning a value of void', self.pos)
+        vm.comp_ctx.verify_assign(self._sym, typed_str, self.pos)
+        return '{} = {};'.format(self._sym, typed_str.string)
 
-class Decl(Instr):
+class Decl(Instrn):
     def __init__(self, typed_sym, pos):
         super().__init__(pos)
         assert isinstance(typed_sym, TypedSym)
@@ -169,10 +147,11 @@ class Decl(Instr):
     def compile(self, vm):
         # vm.comp_ctx.decl(self._typed_sym, TypedValue(0, self._typed_sym.type), self)
         vm.comp_ctx.declare_symbol(self._typed_sym, self)
-        return '{} {};'.format(self._typed_sym.type, self._typed_sym.name)
+        type_repr = type_cpp_repr(self._typed_sym.type)
+        return '{} {};'.format(type_repr, self._typed_sym.sym)
 
 
-class Pushi(Instr):
+class Pushi(Instrn):
     def __init__(self, value, pos):
         super().__init__(pos)
         assert isinstance(value, TypedValue)
@@ -186,7 +165,7 @@ class Pushi(Instr):
         return code
 
 
-class Push(Instr):
+class Push(Instrn):
     def __init__(self, sym, pos):
         super().__init__(pos)
         # assert isinstance(sym, TypedValue)
@@ -199,7 +178,7 @@ class Push(Instr):
         return vm.comp_push_sym(self._sym, self)
 
 
-class Call(Instr):
+class Call(Instrn):
     def __init__(self, sym, argExprns, pos):
         super().__init__(pos)
         self._sym = sym
@@ -215,12 +194,12 @@ class Call(Instr):
         prep_code = []
         for argExprn in self._argExprns:
             prep_code += vm.compile(argExprn)
-            call_code += (', '  if call_code else '') + str(vm.comp_pop().value)
+            call_code += (', '  if call_code else '') + vm.comp_pop().string
         call_code = '{}({})'.format(self._sym, call_code)
         vm.comp_push_fragment( self._sym, call_code, self )
         return prep_code
 
-class Rtn(Instr):
+class Rtn(Instrn):
     def __init__(self, exprn, pos):
         super().__init__(pos)
         self._exprn = exprn
@@ -229,19 +208,19 @@ class Rtn(Instr):
         if self._exprn:
             vm.run(self._exprn)
         else:
-            vm.run_push(Void)
-        check_types_for_assign(vm.run_ctx.func, vm.run_peek(), self)
+            vm.run_push(TypedValue(None, Void()))
+        verify_assign(vm.run_ctx.func.type, vm.run_peek().type, self.pos)
         raise RtnException()
 
     def compile(self, vm):
-        rtn_val = TypedValue(Void, 'Void')
+        rtn_val = TypedValue(None, Void())
         if self._exprn:
             code = vm.compile(self._exprn)
             rtn_val = vm.comp_pop()
-        check_types_for_assign(vm.comp_ctx.func, rtn_val, self)
-        return 'return {};'.format(rtn_val.value if self._exprn else '')
+        verify_assign(vm.comp_ctx.func.type, rtn_val.type, self)
+        return 'return {};'.format(rtn_val.string if self._exprn else '')
 
-class Pop(Instr):
+class Pop(Instrn):
     def run(self, vm):
         vm.run_pop()
 
@@ -250,7 +229,7 @@ class Pop(Instr):
         return ''
 
 
-class IfElse(Instr):
+class IfElse(Instrn):
     def __init__(self, condInstr, ifBlockInstr, elseBlockInstr, pos):
         super().__init__(pos)
         self._condInstr = condInstr
@@ -268,7 +247,7 @@ class IfElse(Instr):
 
     def compile(self, vm):
         code = vm.compile(self._condInstr)
-        code += ['if(' + str(vm.comp_pop().value) + '){']
+        code += ['if(' + vm.comp_pop().string + '){']
         code += _indent(vm.compile(self._ifBlockInstr))
         elseBlk = _indent(vm.compile(self._elseBlockInstr))
         if elseBlk:
@@ -277,7 +256,7 @@ class IfElse(Instr):
         code += ['}']
         return code
 
-class WhileLoop(Instr):
+class WhileLoop(Instrn):
     def __init__(self, condInstrs, loopInstrs, pos):
         super().__init__(pos)
         self._condInstrs = condInstrs
@@ -297,7 +276,7 @@ class WhileLoop(Instr):
 
         code += ['while(1){']
         blockCode = vm.compile(self._condInstrs)
-        blockCode += ['if(!(' + str(vm.comp_pop().value) +')){']
+        blockCode += ['if(!(' + str(vm.comp_pop().string) +')){']
         blockCode += _indent(['break;'])
         blockCode += ['}']
         blockCode += vm.compile(self._loopInstrs)

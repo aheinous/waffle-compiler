@@ -1,30 +1,42 @@
-from collections import namedtuple
 from scope_mgr import ScopeMgr
 from lark.visitors import Interpreter
 from instructions import *
-from type_checking import *
+from type_system import *
+from position import Position
+
+# import re
+# import codecs
+
+# _ESCAPE_SEQUENCE_RE = re.compile(r'''
+#     ( \\U........      # 8-digit hex escapes
+#     | \\u....          # 4-digit hex escapes
+#     | \\x..            # 2-digit hex escapes
+#     | \\[0-7]{1,3}     # Octal escapes
+#     | \\N\{[^}]+\}     # Unicode characters by name
+#     | \\[\\'"abfnrtv]  # Single-character escapes
+#     )''', re.UNICODE | re.VERBOSE)
+
+# def _decode_escapes(s):
+#     def decode_match(match):
+#         return codecs.decode(match.group(0), 'unicode-escape')
+
+#     return _ESCAPE_SEQUENCE_RE.sub(decode_match, s)
 
 def _get_sym(sym):
     assert sym.data == 'sym'
     return str(sym.children[0])
 
-def _get_type(type_):
+def _get_type(type_, pos):
     assert type_.data == 'type'
-    return str(type_.children[0])
+    return make_type(str(type_.children[0]), pos)
 
 
-def _get_sym_and_type(two_children):
-    return TypedSym(_get_sym(two_children[0]), _get_type(two_children[1]))
+def _get_sym_and_type(two_children, pos):
+    return TypedSym(
+        _get_sym(two_children[0]),
+        _get_type(two_children[1], pos)
+    )
 
-# TODO Move
-_Position = namedtuple('Position', ['filename', 'ln', 'col'])
-
-class Position(_Position):
-    def __str__(self):
-        return '{}:{}:{}'.format(self.filename, self.ln, self.col)
-
-    def __repr__(self):
-        return self.__str__()
 
 
 
@@ -55,31 +67,34 @@ class InstructionGenerator(Interpreter):
     @add_position_arg
     def add(self, tree, pos):
         self.visit_children(tree)
-        self._scope_mgr.add_instrn(Add(pos))
+        self._scope_mgr.add_instrn(BinOp(Add(), pos))
 
 
     @add_position_arg
     def sub(self, tree, pos):
         self.visit_children(tree)
-        self._scope_mgr.add_instrn(Sub(pos))
+        self._scope_mgr.add_instrn(BinOp(Sub(), pos))
 
 
     @add_position_arg
     def mult(self, tree, pos):
         self.visit_children(tree)
-        self._scope_mgr.add_instrn(Mult(pos))
+        mul = Mul()
+        binop = BinOp(mul, pos)
+        # self._scope_mgr.add_instrn(BinOp(Mul(), pos))
+        self._scope_mgr.add_instrn(binop)
 
 
     @add_position_arg
     def div(self, tree, pos):
         self.visit_children(tree)
-        self._scope_mgr.add_instrn(Div(pos))
+        self._scope_mgr.add_instrn(BinOp(Div(), pos))
 
 
     @add_position_arg
     def neg(self, tree, pos):
         self.visit_children(tree)
-        self._scope_mgr.add_instrn(Neg(pos))
+        self._scope_mgr.add_instrn(UnaryOp(Neg(), pos))
 
 
 
@@ -92,11 +107,28 @@ class InstructionGenerator(Interpreter):
 
     @add_position_arg
     def integer(self, tree, pos):
-        self._scope_mgr.add_instrn(Pushi( TypedValue(int(tree.children[0]), 'int'), pos))
+        str_repr = str(tree.children[0])
+        typed_value = make_value(str_repr, Int(), pos)
+
+        # self._scope_mgr.add_instrn(Pushi( TypedValue(int(tree.children[0]), Int()), pos))
+        self._scope_mgr.add_instrn(Pushi(typed_value, pos))
 
     @add_position_arg
     def floating_pt(self, tree, pos):
-        self._scope_mgr.add_instrn(Pushi( TypedValue(float(tree.children[0]), 'float'), pos))
+        str_repr = str(tree.children[0])
+        typed_value = make_value(str_repr, Float(), pos)
+        # self._scope_mgr.add_instrn(Pushi( TypedValue(float(tree.children[0]), Float()), pos))
+        self._scope_mgr.add_instrn(Pushi(typed_value, pos))
+
+    @add_position_arg
+    def string(self, tree, pos):
+        str_repr = str(tree.children[0])
+        typed_value = make_value(str_repr, String(), pos)
+        # s = str(tree.children[0])
+        # s = _decode_escapes(str(tree.children[0])[1:-1])
+        # print(s)
+        # self._scope_mgr.add_instrn(Pushi( TypedValue(s, String), pos))
+        self._scope_mgr.add_instrn(Pushi(typed_value, pos))
 
 
 
@@ -107,16 +139,16 @@ class InstructionGenerator(Interpreter):
 
     @add_position_arg
     def decl(self, tree, pos):
-        var = _get_sym_and_type(tree.children[0:2])
+        var = _get_sym_and_type(tree.children[0:2], pos)
         self._scope_mgr.add_instrn(Decl( var, pos))
 
     @add_position_arg
     def decl_init(self, tree, pos):
-        var = _get_sym_and_type(tree.children[0:2])
+        typed_sym = _get_sym_and_type(tree.children[0:2], pos)
         exprn = tree.children[2]
         self.visit(exprn)
-        self._scope_mgr.add_instrn(Decl( var, pos ))
-        self._scope_mgr.add_instrn(Assign( var.value, pos))
+        self._scope_mgr.add_instrn(Decl( typed_sym, pos ))
+        self._scope_mgr.add_instrn(Assign( typed_sym.sym, pos))
 
 
     @add_position_arg
@@ -161,21 +193,25 @@ class InstructionGenerator(Interpreter):
         treeArgList = tree.children[1].children
         argList = []
         for i in range(0, len(treeArgList), 2):
-            argList.append(_get_sym_and_type(treeArgList[i:i+2]))
+            argList.append(_get_sym_and_type(treeArgList[i:i+2], pos))
 
 
         sym = _get_sym(tree.children[0])
-        rtn_type = _get_type(tree.children[2])
+        rtn_type = _get_type(tree.children[2], pos)
 
         block = tree.children[3]
         # for arg in tree.children[1].children:
         #     args += [getSymValue(arg)]
         block = self._visit_get_instrs(block)
+
+        # make sure we end with a Rtn
+        if not block or not isinstance(block[-1], Rtn):
+            block += [Rtn([], pos)]
         typed_sym = TypedSym(sym, rtn_type)
         func = Func(typed_sym, argList, block, pos)
         typed_func = TypedValue(func, rtn_type)
         # self._scope_mgr.add_func(typed_sym, typed_func, func)
-        self._scope_mgr.init_symbol(typed_sym, typed_func, func)
+        self._scope_mgr.init_symbol(typed_sym, typed_func, pos)
 
     @add_position_arg
     def func_call(self, tree, pos):

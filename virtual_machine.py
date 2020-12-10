@@ -1,49 +1,55 @@
 from typing import TypeVar
 from instructions import Func
 from exceptions import VMRuntimeException, TypeMismatchException
-from type_checking import *
+# from type_checking import *
+from type_system import *
 from copy import copy as shallow_copy, deepcopy
 
 
 
 class VirtualMachine:
     def __init__(self, start_ctx):
-        # self._instrsDestStack = [[]]
         self._run_stack = []
         self.run_ctx = start_ctx
-        # self._run_call_stack = []
 
         self._comp_stack = []
         self._comp_tmpcnt = 0
         self.comp_ctx = deepcopy(start_ctx) # TODO enter/exit scopes
         self._comp_call_stack = []
 
+
+    def _comp_push(self, typed_str):
+        assert isinstance(typed_str, TypedStr)
+        self._comp_stack.append(typed_str)
+
+
     def comp_push(self, val):
-        assert isinstance(val, TypedValue)
+        assert isinstance(val, TypedStr)
         name = 'tmp_{}'.format(self._comp_tmpcnt)
-        self._comp_stack.append(TypedValue(name, val.type))
-        code = '{} {} = {};'.format(val.type, name, val.value)
+        # self._comp_stack.append(TypedValue(name, val.type))
+        self._comp_push(TypedStr(name, val.type))
+        code = '{} {} = {};'.format(val.type_repr, name, val.string)
         self._comp_tmpcnt += 1
         return code
 
     def comp_pushi(self, val):
         assert isinstance(val, TypedValue)
-        self._comp_stack.append(val)
+        self._comp_push(val.cpp_repr)
         return []
 
-    def comp_push_sym(self, sym, who):
+    def comp_push_sym(self, sym, pos):
         assert isinstance(sym, str)
-        typed_value = self.comp_ctx.read_symbol(sym, who)
-        typed_sym = TypedSym(sym, typed_value.type)
-        self._comp_stack.append(typed_sym)
+        typed_value = self.comp_ctx.read_symbol(sym, pos)
+        typed_str = TypedStr(sym, typed_value.type)
+        self._comp_push(typed_str)
         return []
 
 
-    def comp_push_fragment(self, sym, fragment, who):
+    def comp_push_fragment(self, sym, fragment, pos):
         assert isinstance(sym, str)
-        val = self.comp_ctx.read_symbol(sym, who)
-        val = TypedValue(fragment, val.type)
-        self._comp_stack.append(val)
+        val = self.comp_ctx.read_symbol(sym, pos)
+        val = TypedStr(fragment, val.type)
+        self._comp_push(val)
         return []
 
 
@@ -66,17 +72,19 @@ class VirtualMachine:
 
 
 
-    def call(self, sym, who):
-        func = self.run_ctx.read_symbol(sym, who).value
+    def call(self, sym, pos):
+        func = self.run_ctx.read_symbol(sym, pos).value
         # self._run_call_stack.append(func)
         func.run(self)
 
 
 
     def __str__(self):
-        return 'VM:\n\tRunStack' + str(self._run_stack) \
-                + '\n\tCompStack' + str(self._comp_stack) \
-                + '\n\t' + str(self.run_ctx.global_symbols)
+        s =  'VM:\n\tRunStack' + str(self._run_stack) \
+                + '\n\tCompStack' + str(self._comp_stack)
+        for sym, value in self.run_ctx.global_symbols.items():
+                s += '\n\t{}: {}'.format(sym, value)
+        return s
 
 
     def run(self, instrns=None):

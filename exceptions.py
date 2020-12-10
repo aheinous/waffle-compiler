@@ -25,4 +25,12 @@ class SymbolReassignment(VMRuntimeException):
 
 class SymbolNotFound(VMRuntimeException):
 	def __init__(self,  pos):
-		super().__init__("Assignment to undeclared varialbe", pos)
+		super().__init__("Assignment to undeclared variable", pos)
+
+class UnrecognizedType(VMRuntimeException):
+	def __init__(self,  pos):
+		super().__init__("Unrecognized type", pos)
+
+class IllegalOperation(VMRuntimeException):
+	def __init__(self,  pos):
+		super().__init__("Illegal Operation", pos)

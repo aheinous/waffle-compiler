@@ -2,11 +2,11 @@
 
 # from instructions import TypedValue
 from lark import Lark
-from lark.exceptions import UnexpectedInput
+from lark.exceptions import LarkError, UnexpectedInput
 
 from virtual_machine import VirtualMachine, VMRuntimeException
 from instruction_generator import InstructionGenerator, Position
-from type_checking import *
+from type_system import *
 
 def compile(src_fname):
     parser = Lark.open('syntax.lark', parser='lalr', propagate_positions=True)
@@ -14,7 +14,11 @@ def compile(src_fname):
     src = ''
     with open(src_fname, 'r') as src_file:
         src = ''.join(src_file.readlines())
-    tree = parser.parse(src)
+    try:
+        tree = parser.parse(src)
+    except LarkError as e:
+        print(e)
+        return
     print(tree)
     print(tree.pretty())
 
@@ -30,20 +34,23 @@ def compile(src_fname):
     print(vm)
 
     print('### Run')
-    try:
-        vm.run()
-    except VMRuntimeException as rte:
-        print('ERROR: ' + str(rte))
+    vm.run()
+    # try:
+    #     vm.run()
+    # except VMRuntimeException as rte:
+    #     print('ERROR: ' + str(rte))
 
     print(vm)
 
 
     print('### compile')
-    try:
-        code = '\n'.join(vm.compile())
-        print(code)
-    except VMRuntimeException as rte:
-        print('ERROR: ' + str(rte))
+    code = '\n'.join(vm.compile())
+    print(code)
+    # try:
+    #     code = '\n'.join(vm.compile())
+    #     print(code)
+    # except VMRuntimeException as rte:
+    #     print('ERROR: ' + str(rte))
 
     print(vm)
 

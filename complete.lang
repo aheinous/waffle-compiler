@@ -53,4 +53,19 @@ func fact(n:int):int {
 }
 
 
+
+
 i:int = fact(5) // i = 120
+
+func noreturn(): void {
+	x:int = 44
+}
+
+noreturn()
+
+
+func sym_hide(): void {
+	a:string = "no error"
+}
+
+sym_hide()
