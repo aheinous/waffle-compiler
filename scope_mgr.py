@@ -10,6 +10,17 @@ class _Scope:
         self.symbols = {} # {str : TypedValue }
         self.func = None
 
+class _ScopePush:
+    def __init__(self, scope_mgr):
+        self._scope_mgr = scope_mgr
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._scope_mgr.pop_scope()
+
+
 
 class ScopeMgr:
     def __init__(self):
@@ -20,6 +31,10 @@ class ScopeMgr:
         self.push_scope()
         self._cur_scope.func = func
         self._func_stack.append(func)
+
+    def raii_push_scope(self):
+        self._scope_stack.append(_Scope())
+        return _ScopePush(self)
 
     def push_scope(self):
         self._scope_stack.append(_Scope())

@@ -219,20 +219,24 @@ class IfElse(Instrn):
     def run(self, vm):
         vm.run(self._condInstr)
         cond = vm.run_pop().value
-        if cond:
-            vm.run(self._ifBlockInstr)
-        else:
-            vm.run(self._elseBlockInstr)
+        with vm.run_ctx.raii_push_scope():
+            if cond:
+                vm.run(self._ifBlockInstr)
+            else:
+                vm.run(self._elseBlockInstr)
 
     def compile(self, vm):
         code = vm.compile(self._condInstr)
-        code += ['if(' + vm.comp_pop().string + '){']
-        code += _indent(vm.compile(self._ifBlockInstr))
-        elseBlk = _indent(vm.compile(self._elseBlockInstr))
-        if elseBlk:
-            code += ['} else {']
-            code += elseBlk
-        code += ['}']
+        # vm.comp_ctx.push_scope()
+        with vm.comp_ctx.raii_push_scope():
+            code += ['if(' + vm.comp_pop().string + '){']
+            code += _indent(vm.compile(self._ifBlockInstr))
+            elseBlk = _indent(vm.compile(self._elseBlockInstr))
+            if elseBlk:
+                code += ['} else {']
+                code += elseBlk
+            code += ['}']
+        # vm.comp_ctx.pop_scope()
         return code
 
 class WhileLoop(Instrn):
@@ -248,7 +252,8 @@ class WhileLoop(Instrn):
             cond = vm.run_pop()
             if not cond.value:
                 break
-            vm.run(self._loopInstrs)
+            with vm.run_ctx.raii_push_scope():
+                vm.run(self._loopInstrs)
 
     def compile(self, vm):
         code = []
@@ -258,7 +263,8 @@ class WhileLoop(Instrn):
         blockCode += ['if(!(' + str(vm.comp_pop().string) +')){']
         blockCode += _indent(['break;'])
         blockCode += ['}']
-        blockCode += vm.compile(self._loopInstrs)
+        with vm.comp_ctx.raii_push_scope():
+            blockCode += vm.compile(self._loopInstrs)
         code += _indent(blockCode)
         code += ['}']
 
