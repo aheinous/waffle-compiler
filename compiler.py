@@ -98,7 +98,7 @@ def compile(src_fname):
 
 def main():
     compile('complete.lang')
-    compile('test.lang')
+    #compile('test.lang')
 
 if __name__ == '__main__':
     main()

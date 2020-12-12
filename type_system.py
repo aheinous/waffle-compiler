@@ -204,8 +204,8 @@ def check_assign_okay(l_type, r_type, pos):
 
 
 
-def assign(left, right, pos):
-    l_type, r_type = left.type, right.type
+def assign(l_type, right, pos):
+    r_type = right.type
     check_assign_okay(l_type, r_type, pos)
     value = right.value
 
@@ -213,6 +213,7 @@ def assign(left, right, pos):
     # if isinstance(value, Func):
         # return TypedValue(value, l_type)
 
+    # hack for 'if instanceof(value, Func)'
     if 'instructions.Func' in str(value.__class__):
         return TypedValue(value, l_type)
 

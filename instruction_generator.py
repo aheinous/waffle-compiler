@@ -148,7 +148,7 @@ class InstructionGenerator(Interpreter):
         children = tree.children
         elseBlk = []
         elsePos  = None
-        if len(children) % 2 == 1:
+        if len(children) % 2 == 1: # if else block at end of if elif chain
             elseBlk = self._visit_get_instrs(children[-1])
             # elsePos =
 
@@ -157,8 +157,8 @@ class InstructionGenerator(Interpreter):
 
         for i in range(start, -2, -2):
             cond =  self._visit_get_instrs(children[i])
-            pos = cond[0].pos
             ifBlk = self._visit_get_instrs(children[i+1])
+            pos = cond[0].pos
             elseBlk = [IfElse(cond, ifBlk, elseBlk, pos)]
 
         self._instrn_recorder.add_instrn(elseBlk[0])

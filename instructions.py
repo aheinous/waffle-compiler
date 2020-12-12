@@ -246,10 +246,12 @@ class IfElse(Instrn):
     def run(self, vm):
         vm.run(self._condInstr)
         cond = vm.run_pop().value
-        with vm.run_ctx.raii_push_scope():
-            if cond:
+        # with vm.run_ctx.raii_push_scope():
+        if cond:
+            with vm.run_ctx.enter_scope(self._ifBlockInstr[0].pos):
                 vm.run(self._ifBlockInstr)
-            else:
+        else:
+            with vm.run_ctx.enter_scope(self._elseBlockInstr[0].pos):
                 vm.run(self._elseBlockInstr)
 
     def compile(self, vm):
@@ -281,7 +283,7 @@ class WhileLoop(Instrn):
             cond = vm.run_pop()
             if not cond.value:
                 break
-            with vm.run_ctx.raii_push_scope():
+            with vm.run_ctx.enter_scope(self._loopInstrs[0].pos):
                 vm.run(self._loopInstrs)
 
     def compile(self, vm):
