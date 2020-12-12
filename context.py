@@ -138,7 +138,7 @@ class ScopeMaker(InstrnTreeVisitor):
     def on_visit_new_scope(self, name, instrns):
         if not instrns:
             return
-        self._push(name, instrns[0].pos, instrns)
+        self._push(name, instrns.uid, instrns)
         self.visit(instrns)
         self._pop()
 

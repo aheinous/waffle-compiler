@@ -235,6 +235,8 @@ class Pop(Instrn):
 class IfElse(Instrn):
     def __init__(self, condInstr, ifBlockInstr, elseBlockInstr, pos):
         super().__init__(pos)
+        # ifBlockInstr.uid
+        # elseBlockInstr.uid
         self._condInstr = condInstr
         self._add_child_scope('if_blk', ifBlockInstr)
         self._add_child_scope('else_blk', elseBlockInstr)
@@ -248,10 +250,10 @@ class IfElse(Instrn):
         cond = vm.run_pop().value
         # with vm.run_ctx.raii_push_scope():
         if cond:
-            with vm.run_ctx.enter_scope(self._ifBlockInstr[0].pos):
+            with vm.run_ctx.enter_scope(self._ifBlockInstr.uid):
                 vm.run(self._ifBlockInstr)
         else:
-            with vm.run_ctx.enter_scope(self._elseBlockInstr[0].pos):
+            with vm.run_ctx.enter_scope(self._elseBlockInstr.uid):
                 vm.run(self._elseBlockInstr)
 
     def compile(self, vm):
@@ -283,7 +285,7 @@ class WhileLoop(Instrn):
             cond = vm.run_pop()
             if not cond.value:
                 break
-            with vm.run_ctx.enter_scope(self._loopInstrs[0].pos):
+            with vm.run_ctx.enter_scope(self._loopInstrs.uid):
                 vm.run(self._loopInstrs)
 
     def compile(self, vm):

@@ -29,15 +29,25 @@ def add_position_arg(func):
     return wrapper
 
 
+class Block(list):
+    @property
+    def pos(self):
+        return self[0].pos
+
+    @property
+    def uid(self):
+        return self.pos
+
+
 class _InstructionRecorder:
     def __init__(self):
-        self._instrn_stack = [[]]
+        self._instrn_stack = [Block()]
 
     def add_instrn(self, instrn):
         self._instrn_stack[-1].append(instrn)
 
     def push(self):
-            self._instrn_stack.append([])
+            self._instrn_stack.append(Block())
 
     def pop(self):
         return self._instrn_stack.pop()
@@ -146,7 +156,7 @@ class InstructionGenerator(Interpreter):
     @add_position_arg
     def if_elif(self, tree, pos):
         children = tree.children
-        elseBlk = []
+        elseBlk = Block()
         elsePos  = None
         if len(children) % 2 == 1: # if else block at end of if elif chain
             elseBlk = self._visit_get_instrs(children[-1])
@@ -159,7 +169,7 @@ class InstructionGenerator(Interpreter):
             cond =  self._visit_get_instrs(children[i])
             ifBlk = self._visit_get_instrs(children[i+1])
             pos = cond[0].pos
-            elseBlk = [IfElse(cond, ifBlk, elseBlk, pos)]
+            elseBlk = Block([IfElse(cond, ifBlk, elseBlk, pos)])
 
         self._instrn_recorder.add_instrn(elseBlk[0])
 
