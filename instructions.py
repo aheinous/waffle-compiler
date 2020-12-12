@@ -71,14 +71,16 @@ class BinOp(Instrn):
         right = vm.comp_pop()
         left = vm.comp_pop()
         res_type = op_res_type(self.op, left.type, right.type, self)
-        op_repr = op_cpp_repr(self.op)
-        return vm.comp_push(
-            TypedStr(
-                '{} {} {}'.format(left.string, op_repr, right.string),
-                res_type
-            )
-        )
 
+        tmp_name = 'tmp_{}'.format(vm.comp_ctx.cur_scope.next_tmp())
+        vm.comp_push(TypedStr(tmp_name, res_type))
+
+        code = '{} {} = {} {} {};'.format(  res_type.repr,
+                                            tmp_name,
+                                            left.string,
+                                            self.op.repr,
+                                            right.string)
+        return code
 
 
 class UnaryOp(Instrn):
@@ -141,8 +143,8 @@ class Pushi(Instrn):
         vm.run_push(self._value)
 
     def compile(self, vm):
-        code = vm.comp_pushi(self._value)
-        return code
+        vm.comp_push(self._value.cpp_repr)
+        return []
 
 
 class Push(Instrn):
@@ -151,31 +153,38 @@ class Push(Instrn):
         self._sym = sym
 
     def run(self, vm):
-        vm.run_push(vm.run_ctx.read_symbol(self._sym, self))
+        vm.run_push(vm.run_ctx.read_symbol(self._sym, self.pos))
 
     def compile(self, vm):
-        return vm.comp_push_sym(self._sym, self)
+
+        typed_value = vm.comp_ctx.read_symbol(self._sym, self.pos)
+        typed_str = TypedStr(self._sym, typed_value.type)
+
+        vm.comp_push(typed_str)
+        return []
 
 
 class Call(Instrn):
-    def __init__(self, sym, argExprns, pos):
+    def __init__(self, func_sym, argExprns, pos):
         super().__init__(pos)
-        self._sym = sym
+        self._func_sym = func_sym
         self._argExprns = argExprns
 
     def run(self, vm):
         for instrs in self._argExprns:
             vm.run(instrs)
-        vm.call(self._sym, self)
+        vm.call(self._func_sym, self)
 
     def compile(self, vm):
-        call_code = ''
+        arg_code = ''
         prep_code = []
         for argExprn in self._argExprns:
             prep_code += vm.compile(argExprn)
-            call_code += (', '  if call_code else '') + vm.comp_pop().string
-        call_code = '{}({})'.format(self._sym, call_code)
-        vm.comp_push_fragment( self._sym, call_code, self )
+            arg_code += (', '  if arg_code else '') + vm.comp_pop().string
+
+        call_code = '{}({})'.format(self._func_sym, arg_code)
+        type_ = vm.comp_ctx.read_symbol(self._func_sym, self.pos).type
+        vm.comp_push(TypedStr(call_code, type_))
         return prep_code
 
 class Rtn(Instrn):
@@ -229,7 +238,8 @@ class IfElse(Instrn):
         code = vm.compile(self._condInstr)
         # vm.comp_ctx.push_scope()
         with vm.comp_ctx.raii_push_scope():
-            code += ['if(' + vm.comp_pop().string + '){']
+            cond = vm.comp_pop()
+            code += ['if(' + cond.string + '){']
             code += _indent(vm.compile(self._ifBlockInstr))
             elseBlk = _indent(vm.compile(self._elseBlockInstr))
             if elseBlk:

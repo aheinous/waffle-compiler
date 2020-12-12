@@ -15,40 +15,9 @@ class VirtualMachine:
         self._comp_call_stack = []
 
 
-    def _comp_push(self, typed_str):
+    def comp_push(self, typed_str):
         assert isinstance(typed_str, TypedStr)
         self._comp_stack.append(typed_str)
-
-
-    def comp_push(self, val):
-        assert isinstance(val, TypedStr)
-        name = 'tmp_{}'.format(self._comp_tmpcnt)
-        self._comp_push(TypedStr(name, val.type))
-        code = '{} {} = {};'.format(val.type_repr, name, val.string)
-        self._comp_tmpcnt += 1
-        return code
-
-    def comp_pushi(self, val):
-        assert isinstance(val, TypedValue)
-        self._comp_push(val.cpp_repr)
-        return []
-
-    def comp_push_sym(self, sym, pos):
-        assert isinstance(sym, str)
-        typed_value = self.comp_ctx.read_symbol(sym, pos)
-        typed_str = TypedStr(sym, typed_value.type)
-        self._comp_push(typed_str)
-        return []
-
-
-    def comp_push_fragment(self, sym, fragment, pos):
-        assert isinstance(sym, str)
-        val = self.comp_ctx.read_symbol(sym, pos)
-        val = TypedStr(fragment, val.type)
-        self._comp_push(val)
-        return []
-
-
 
     def comp_pop(self):
         return self._comp_stack.pop()

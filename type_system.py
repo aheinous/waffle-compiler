@@ -38,7 +38,11 @@ def _encode_escapes(s):
 
 
 
-class _Type: pass
+class _Type:
+    @property
+    def repr(self):
+        return type_cpp_repr(self)
+
 
 class Void(_Type): pass
 
@@ -48,7 +52,12 @@ class Float(_Num): pass
 class String(_Type): pass
 
 
-class _Op: pass
+class _Op:
+    @property
+    def repr(self):
+        return op_cpp_repr(self)
+
+
 class _BinOp(_Op): pass
 class Add(_BinOp): pass
 class Sub(_BinOp): pass
@@ -83,6 +92,7 @@ class TypedSym(_Typed):
         self.sym = sym
         self.type = type
         assert isinstance(self.type, _Type)
+        assert isinstance(self.sym, str)
 
     def __repr__(self):
         s = '(TypedSym {} {})'.format(self.sym, self.type)
@@ -104,6 +114,7 @@ class TypedStr(_Typed):
         self.string = string
         self.type = type
         assert isinstance(self.type, _Type)
+        assert isinstance(self.string, str)
 
     def __repr__(self):
         s = '(TypedStr {} {})'.format(self.string, self.type)

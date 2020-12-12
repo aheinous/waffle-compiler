@@ -9,6 +9,11 @@ class _Scope:
         self.instrns = []
         self.symbols = {} # {str : TypedValue }
         self.func = None
+        self.tmp_cnt = 0
+
+    def next_tmp(self):
+        self.tmp_cnt += 1
+        return self.tmp_cnt - 1
 
 class _ScopePush:
     def __init__(self, scope_mgr):
@@ -29,7 +34,7 @@ class ScopeMgr:
 
     def push_func_scope(self, func):
         self.push_scope()
-        self._cur_scope.func = func
+        self.cur_scope.func = func
         self._func_stack.append(func)
 
     def raii_push_scope(self):
@@ -51,7 +56,7 @@ class ScopeMgr:
         return self._func_stack[-1]
 
     @property
-    def _cur_scope(self):
+    def cur_scope(self):
         return self._scope_stack[-1]
 
     def init_symbol(self, typed_sym, typed_value, pos):
@@ -59,9 +64,9 @@ class ScopeMgr:
         self.assign_symbol(typed_sym.sym, typed_value, pos)
 
     def declare_symbol(self, typed_sym, pos):
-        if typed_sym.sym in self._cur_scope.symbols:
+        if typed_sym.sym in self.cur_scope.symbols:
             raise SymbolReassignment(pos)
-        self._cur_scope.symbols[typed_sym.sym] = TypedValue(None, typed_sym.type)
+        self.cur_scope.symbols[typed_sym.sym] = TypedValue(None, typed_sym.type)
 
 
     def assign_symbol(self, sym, typed_value, pos):
@@ -86,7 +91,7 @@ class ScopeMgr:
         raise SymbolNotFound(pos)
 
     def add_instrn(self, instrn):
-        self._cur_scope.instrns.append(instrn)
+        self.cur_scope.instrns.append(instrn)
 
     def __contains__(self, sym):
         for scope in reversed(self._scope_stack):
@@ -96,7 +101,7 @@ class ScopeMgr:
 
     @property
     def instrns(self):
-        return self._cur_scope.instrns
+        return self.cur_scope.instrns
 
 
     @property
