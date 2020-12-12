@@ -1,4 +1,4 @@
-from scope_mgr import ScopeMgr
+# from scope_mgr import ScopeMgr
 from lark.visitors import Interpreter
 from position import Position
 from instructions import Func, Assign, Push, Pushi, Pop, Decl, IfElse, WhileLoop, Rtn, Call, BinOp, UnaryOp
@@ -29,33 +29,51 @@ def add_position_arg(func):
     return wrapper
 
 
+class _InstructionRecorder:
+    def __init__(self):
+        self._instrn_stack = [[]]
+
+    def add_instrn(self, instrn):
+        self._instrn_stack[-1].append(instrn)
+
+    def push(self):
+            self._instrn_stack.append([])
+
+    def pop(self):
+        return self._instrn_stack.pop()
+
 class InstructionGenerator(Interpreter):
     def __init__(self, fname):
         super().__init__()
         self._fname = fname
-        self._scope_mgr = ScopeMgr()
+        self._instrn_recorder = _InstructionRecorder()
+        self._funcs = []
 
     @property
-    def results(self):
-        return self._scope_mgr
+    def instructions(self):
+        return self._instrn_recorder._instrn_stack[0]
+
+    @property
+    def functions(self):
+        return self._funcs
 
     def _visit_get_instrs(self, tree):
-        self._scope_mgr.push_scope()
+        self._instrn_recorder.push()
         self.visit(tree)
-        instrns = self._scope_mgr.instrns
-        self._scope_mgr.pop_scope()
+        # instrns = self._instrn_recorder.instrns
+        instrns = self._instrn_recorder.pop()
         return instrns
 
     @add_position_arg
     def add(self, tree, pos):
         self.visit_children(tree)
-        self._scope_mgr.add_instrn(BinOp(Add(), pos))
+        self._instrn_recorder.add_instrn(BinOp(Add(), pos))
 
 
     @add_position_arg
     def sub(self, tree, pos):
         self.visit_children(tree)
-        self._scope_mgr.add_instrn(BinOp(Sub(), pos))
+        self._instrn_recorder.add_instrn(BinOp(Sub(), pos))
 
 
     @add_position_arg
@@ -63,26 +81,26 @@ class InstructionGenerator(Interpreter):
         self.visit_children(tree)
         mul = Mul()
         binop = BinOp(mul, pos)
-        self._scope_mgr.add_instrn(binop)
+        self._instrn_recorder.add_instrn(binop)
 
 
     @add_position_arg
     def div(self, tree, pos):
         self.visit_children(tree)
-        self._scope_mgr.add_instrn(BinOp(Div(), pos))
+        self._instrn_recorder.add_instrn(BinOp(Div(), pos))
 
 
     @add_position_arg
     def neg(self, tree, pos):
         self.visit_children(tree)
-        self._scope_mgr.add_instrn(UnaryOp(Neg(), pos))
+        self._instrn_recorder.add_instrn(UnaryOp(Neg(), pos))
 
 
 
     @add_position_arg
     def assign(self, tree, pos):
         self.visit(tree.children[1])
-        self._scope_mgr.add_instrn(Assign( _get_sym(tree.children[0]), pos ) )
+        self._instrn_recorder.add_instrn(Assign( _get_sym(tree.children[0]), pos ) )
 
 
 
@@ -90,39 +108,39 @@ class InstructionGenerator(Interpreter):
     def integer(self, tree, pos):
         str_repr = str(tree.children[0])
         typed_value = make_value(str_repr, Int(), pos)
-        self._scope_mgr.add_instrn(Pushi(typed_value, pos))
+        self._instrn_recorder.add_instrn(Pushi(typed_value, pos))
 
     @add_position_arg
     def floating_pt(self, tree, pos):
         str_repr = str(tree.children[0])
         typed_value = make_value(str_repr, Float(), pos)
-        self._scope_mgr.add_instrn(Pushi(typed_value, pos))
+        self._instrn_recorder.add_instrn(Pushi(typed_value, pos))
 
     @add_position_arg
     def string(self, tree, pos):
         str_repr = str(tree.children[0])
         typed_value = make_value(str_repr, String(), pos)
-        self._scope_mgr.add_instrn(Pushi(typed_value, pos))
+        self._instrn_recorder.add_instrn(Pushi(typed_value, pos))
 
 
 
     @add_position_arg
     def sym(self, tree, pos):
-        self._scope_mgr.add_instrn(Push( _get_sym(tree), pos))
+        self._instrn_recorder.add_instrn(Push( _get_sym(tree), pos))
 
 
     @add_position_arg
     def decl(self, tree, pos):
         var = _get_sym_and_type(tree.children[0:2], pos)
-        self._scope_mgr.add_instrn(Decl( var, pos))
+        self._instrn_recorder.add_instrn(Decl( var, pos))
 
     @add_position_arg
     def decl_init(self, tree, pos):
         typed_sym = _get_sym_and_type(tree.children[0:2], pos)
         exprn = tree.children[2]
         self.visit(exprn)
-        self._scope_mgr.add_instrn(Decl( typed_sym, pos ))
-        self._scope_mgr.add_instrn(Assign( typed_sym.sym, pos))
+        self._instrn_recorder.add_instrn(Decl( typed_sym, pos ))
+        self._instrn_recorder.add_instrn(Assign( typed_sym.sym, pos))
 
 
     @add_position_arg
@@ -140,7 +158,7 @@ class InstructionGenerator(Interpreter):
             ifBlk = self._visit_get_instrs(children[i+1])
             elseBlk = [IfElse(cond, ifBlk, elseBlk, pos)]
 
-        self._scope_mgr.add_instrn(elseBlk[0])
+        self._instrn_recorder.add_instrn(elseBlk[0])
 
 
 
@@ -151,7 +169,7 @@ class InstructionGenerator(Interpreter):
         loop = self._visit_get_instrs(children[1])
 
         whileloop = WhileLoop(cond, loop, pos)
-        self._scope_mgr.add_instrn(whileloop)
+        self._instrn_recorder.add_instrn(whileloop)
 
     @add_position_arg
     def func(self, tree, pos):
@@ -173,24 +191,25 @@ class InstructionGenerator(Interpreter):
         typed_sym = TypedSym(sym, rtn_type)
         func = Func(typed_sym, argList, block, pos)
         typed_func = TypedValue(func, rtn_type)
-        self._scope_mgr.init_symbol(typed_sym, typed_func, pos)
+        # self._instrn_recorder.init_symbol(typed_sym, typed_func, pos)
+        self._funcs.append((typed_sym, typed_func))
 
     @add_position_arg
     def func_call(self, tree, pos):
         sym = _get_sym(tree.children[0])
         callArgs = tree.children[1].children
         argInstrs = [self._visit_get_instrs(exprn) for exprn in callArgs]
-        self._scope_mgr.add_instrn(Call(sym, argInstrs, pos))
+        self._instrn_recorder.add_instrn(Call(sym, argInstrs, pos))
 
 
     @add_position_arg
     def func_call_statement(self, tree, pos):
         self.visit_children(tree)
-        self._scope_mgr.add_instrn(Pop(pos))
+        self._instrn_recorder.add_instrn(Pop(pos))
 
     @add_position_arg
     def rtn(self, tree, pos):
         exprn = []
         if len(tree.children):
             exprn = self._visit_get_instrs(tree.children[0])
-        self._scope_mgr.add_instrn(Rtn(exprn, pos))
+        self._instrn_recorder.add_instrn(Rtn(exprn, pos))

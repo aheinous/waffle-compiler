@@ -1,4 +1,5 @@
 #! /usr/bin/python3
+from scope_mgr import ScopeMgr
 from lark import Lark
 from lark.exceptions import LarkError, UnexpectedInput
 
@@ -22,10 +23,16 @@ def compile(src_fname):
     gen = InstructionGenerator(src_fname)
     gen.visit(tree)
 
+    sm = ScopeMgr()
+
+    sm.cur_scope.instrns = gen.instructions
+    for typed_name, typed_func in gen.functions:
+        sm.init_symbol(typed_name, typed_func, typed_func.value.pos)
+
     # print(gen.results.instrns)
-    for instrn in gen.results.instrns:
-        print(instrn)
-    vm = VirtualMachine(gen.results)
+    # for instrn in gen.results.instrns:
+    #     print(instrn)
+    vm = VirtualMachine(sm)
 
     print(vm)
 
