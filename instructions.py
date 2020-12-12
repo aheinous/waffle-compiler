@@ -8,6 +8,11 @@ def _indent(strlist):
 
 
 
+
+
+
+
+
 class Func:
     def __init__(self, typed_sym, args, instrs, pos):
         assert isinstance(typed_sym, TypedSym)
@@ -43,6 +48,16 @@ class Func:
 class Instrn:
     def __init__(self, pos):
         self.pos = pos
+        self._child_scopes = {}
+
+    def _add_child_scope(self, name, child_scope):
+        self._child_scopes[name] = child_scope
+
+    @property
+    def child_scopes(self):
+        return self._child_scopes
+
+
 
     def run(self, vm):
         raise NotImplementedError()
@@ -52,9 +67,9 @@ class Instrn:
 
     def __repr__(self):
         s = self.__class__.__name__ + ' '
-        for k,v in vars(self).items():
-            s += '{} {},'.format(k,v)
-        return '(' + s[:-1] + ')'
+        # for k,v in vars(self).items():
+        #     s += '{} {},'.format(k,v)
+        return '(' + s + str(self.pos) + ')'
 
 
 class BinOp(Instrn):
@@ -221,6 +236,9 @@ class IfElse(Instrn):
     def __init__(self, condInstr, ifBlockInstr, elseBlockInstr, pos):
         super().__init__(pos)
         self._condInstr = condInstr
+        self._add_child_scope('if_blk', ifBlockInstr)
+        self._add_child_scope('else_blk', elseBlockInstr)
+
         self._ifBlockInstr = ifBlockInstr
         self._elseBlockInstr = elseBlockInstr
 
@@ -255,6 +273,7 @@ class WhileLoop(Instrn):
         self._condInstrs = condInstrs
         self._loopInstrs = loopInstrs
 
+        self._add_child_scope('loop', loopInstrs)
 
     def run(self, vm):
         while True:

@@ -77,6 +77,7 @@ class TypedValue(_Typed):
         self.type = type
         self.value = value
         assert isinstance(self.type, _Type)
+        assert not isinstance(self.value, TypedValue)
 
     def __repr__(self):
         s = '(TypedValue {} {})'.format(self.value, self.type)

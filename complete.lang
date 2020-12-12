@@ -8,11 +8,13 @@ sdlfjs;dlfjs;
 
 a:int
 
+//a = 5
+
 b:int = 5
 
 a = b 					// a = 5
 						// b = 5
-
+/*
 c:int = 1 + 2 * 3 + 4  // c = 11
 
 d:int = (12 - 2) * 10 / 5 // d = 20
@@ -97,3 +99,21 @@ func if_scope_test() : void {
 }
 
 if_scope_test()
+
+
+
+i:int
+
+while 1 {
+	i:int = 0
+	if a {
+		i:int = 10
+		a = a -1
+	} elif b {
+		i:int = 100
+		b = 0
+	} elif c {
+		i:int = 1000
+		return
+	}
+}*/

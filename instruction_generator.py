@@ -147,14 +147,17 @@ class InstructionGenerator(Interpreter):
     def if_elif(self, tree, pos):
         children = tree.children
         elseBlk = []
+        elsePos  = None
         if len(children) % 2 == 1:
             elseBlk = self._visit_get_instrs(children[-1])
+            # elsePos =
 
         start = len(children) - (len(children) % 2) - 2
 
 
         for i in range(start, -2, -2):
             cond =  self._visit_get_instrs(children[i])
+            pos = cond[0].pos
             ifBlk = self._visit_get_instrs(children[i+1])
             elseBlk = [IfElse(cond, ifBlk, elseBlk, pos)]
 

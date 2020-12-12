@@ -7,12 +7,16 @@ from copy import deepcopy
 class VirtualMachine:
     def __init__(self, start_ctx):
         self._run_stack = []
-        self.run_ctx = start_ctx
-
         self._comp_stack = []
-        self._comp_tmpcnt = 0
-        self.comp_ctx = deepcopy(start_ctx)
-        self._comp_call_stack = []
+
+
+        self.run_ctx = start_ctx
+        self.comp_ctx = start_ctx
+        # self.run_ctx = start_ctx
+
+        # self._comp_tmpcnt = 0
+        # self._comp_call_stack = []
+        # self.comp_ctx = deepcopy(start_ctx)
 
 
     def comp_push(self, typed_str):
