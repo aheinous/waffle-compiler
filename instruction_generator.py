@@ -1,4 +1,5 @@
 # from scope_mgr import ScopeMgr
+from instruction_block import Block
 from lark.visitors import Interpreter
 from position import Position
 from instructions import Func, Assign, Push, Pushi, Pop, Decl, IfElse, WhileLoop, Rtn, Call, BinOp, UnaryOp
@@ -29,14 +30,7 @@ def add_position_arg(func):
     return wrapper
 
 
-class Block(list):
-    @property
-    def pos(self):
-        return self[0].pos
 
-    @property
-    def uid(self):
-        return self.pos
 
 
 class _InstructionRecorder:

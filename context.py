@@ -223,14 +223,24 @@ class Context:
                 return
         raise SymbolNotFound(pos)
 
-    def read_symbol(self, sym, pos) -> TypedValue:
+    # def read_symbol(self, sym, pos) -> TypedValue:
+    #     for scope in self._scope_hierarchy():
+    #         if sym in scope:
+    #             return scope.read(sym, VALUE)
+    #     raise SymbolNotFound(pos)
+
+    def read(self, sym, field, pos):
         for scope in self._scope_hierarchy():
             if sym in scope:
-                return scope.read(sym, VALUE)
+                return scope.read(sym, field)
         raise SymbolNotFound(pos)
 
     # def add_instrn(self, instrn):
     #     self.cur_scope.instrns.append(instrn)
+
+    def next_tmp(self):
+        self._cur_scope.tmp_cnt += 1
+        return self._cur_scope.tmp_cnt - 1
 
     def __contains__(self, sym):
         for scope in self._scope_hierarchy():

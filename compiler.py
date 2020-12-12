@@ -27,16 +27,17 @@ def compile(src_fname):
     print("### Instruction Generator")
     gen = InstructionGenerator(src_fname)
     gen.visit(tree)
+    instructions = gen.instructions
 
     print()
     itp = InstrnTreePrinter()
-    itp.visit(gen.instructions)
+    itp.visit(instructions)
 
 
     print('### scope maker')
 
     scopeMaker = ScopeMaker()
-    scopeMaker.start(gen.instructions)
+    scopeMaker.start(instructions)
 
 
     print()
@@ -48,22 +49,28 @@ def compile(src_fname):
 
     ctx = Context()
     ctx.add_new_scopes(scopeMaker.scopes)
-    ctx.enter_scope(gen.instructions[0].pos)
 
     print('##### run')
 
     vm = VirtualMachine(ctx)
-    vm.run(gen.instructions)
+    with ctx.enter_scope(instructions.uid):
+        instructions.run(vm, ctx)
+        print()
+        scopePrinter = ScopeTreePrinter()
+        scopePrinter.visit('root', scopeMaker.scopes[0])
+        print()
 
-    print()
-    scopePrinter = ScopeTreePrinter()
-    scopePrinter.visit('root', scopeMaker.scopes[0])
-    print()
+
+    print('#### compile')
+    with ctx.enter_scope(instructions.uid):
+        # code = vm.compile(instructions)
+        code = instructions.compile(vm, ctx)
+        print('\n'.join(code))
 
     print('==============================================================')
     # sm = ScopeMgr()
 
-    # sm.cur_scope.instrns = gen.instructions
+    # sm.cur_scope.instrns = instructions
     # for typed_name, typed_func in gen.functions:
     #     sm.init_symbol(typed_name, typed_func, typed_func.value.pos)
 
