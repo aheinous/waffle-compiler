@@ -259,13 +259,15 @@ def op_res_type(op, *args):
 
 
     res = match ((l_type, r_type),
-            (Int, Int),   lambda a,b: match(op,   Union[Add, Sub, Mul, Div], Int(),
-                                                _, None),
-            (Float, Int), lambda a,b: match(op,   Union[Add, Sub, Mul, Div], Float(),
-                                                _, None),
-            (Int, Float), lambda a,b: match(op,   Union[Add, Sub, Mul, Div], Float(),
-                                                _, None),
-            (String, String), lambda a,b: match(op, Add, String(),
+            (Int, Int),         lambda a,b: match(op,   Union[Add, Sub, Mul, Div], Int(),
+                                                    _, None),
+            (Float, Float),     lambda a,b: match(op, Union[Add, Sub, Mul, Div], Float(),
+                                                    _, None),
+            (Float, Int),       lambda a,b: match(op,   Union[Add, Sub, Mul, Div], Float(),
+                                                    _, None),
+            (Int, Float),       lambda a,b: match(op,   Union[Add, Sub, Mul, Div], Float(),
+                                                    _, None),
+            (String, String),   lambda a,b: match(op, Add, String(),
                                                     _, None),
             (_,_), None
     )

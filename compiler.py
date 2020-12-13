@@ -2,7 +2,7 @@
 # from instructions import InstrnTreePrinter, InstrnTreeVisitor
 from instruction_tree_visitor import InstrnTreePrinter
 from context import Context, ScopeTreePrinter
-from scope_mgr import ScopeMgr
+# from scope_mgr import ScopeMgr
 from lark import Lark
 from lark.exceptions import LarkError, UnexpectedInput
 
@@ -52,7 +52,7 @@ def compile(src_fname):
 
     print('##### run')
 
-    vm = VirtualMachine(ctx)
+    vm = VirtualMachine()
     with ctx.enter_scope(instructions.uid):
         instructions.run(vm, ctx)
         print()

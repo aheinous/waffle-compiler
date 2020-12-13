@@ -25,10 +25,12 @@ e:int = c * d // e = 220
 f:float = 12.3
 
 func foo():float {
-    return 0.3
+    t:float = 4.0
+    t = t + 3.1
+    return t
 }
 
-//f = foo() // f = 0.3
+f = foo() // f = 0.3
 
 
 // g:int = 100+100.0 // TODO make compile ERROR
@@ -57,7 +59,7 @@ func fact(n:int):int {
 
 
 
-//i:int = fact(5) // i = 120
+i:int = fact(5) // i = 120
 
 func noreturn(): void {
     x:int = 44
@@ -102,7 +104,7 @@ func if_scope_test() : void {
 
 
 
-i:int
+//i:int
 
 while 0 {
     i:int = 0

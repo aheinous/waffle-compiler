@@ -2,7 +2,7 @@
 from instruction_block import Block
 from lark.visitors import Interpreter
 from position import Position
-from instructions import Func, Assign, Push, Pushi, Pop, Decl, IfElse, WhileLoop, Rtn, Call, BinOp, UnaryOp
+from instructions import Func, Assign, InitFunc, Push, Pushi, Pop, Decl, IfElse, WhileLoop, Rtn, Call, BinOp, UnaryOp
 from type_system import make_type, make_value, TypedValue, TypedSym, Add, Sub, Mul, Div, Neg, Int, Float, String
 
 def _get_sym(sym):
@@ -195,11 +195,13 @@ class InstructionGenerator(Interpreter):
         '''make sure we end with a Rtn'''
         if not block or not isinstance(block[-1], Rtn):
             block += [Rtn([], pos)]
+
         typed_sym = TypedSym(sym, rtn_type)
         func = Func(typed_sym, argList, block, pos)
         typed_func = TypedValue(func, rtn_type)
         # self._instrn_recorder.init_symbol(typed_sym, typed_func, pos)
-        self._funcs.append((typed_sym, typed_func))
+        # self._funcs.append((typed_sym, typed_func))
+        self._instrn_recorder.add_instrn(InitFunc(typed_sym, typed_func, pos))
 
     @add_position_arg
     def func_call(self, tree, pos):

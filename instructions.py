@@ -15,34 +15,36 @@ def _indent(strlist):
 
 
 class Func:
-    def __init__(self, typed_sym, args, instrs, pos):
+    def __init__(self, typed_sym, args, instrns, pos):
         assert isinstance(typed_sym, TypedSym)
         self._typed_sym = typed_sym
         self._args = args
-        self._instrs = instrs
+        self.instrns = instrns
         self.pos = pos
 
     def run(self, vm, ctx):
-        ctx.push_func_scope(TypedValue(self, self._typed_sym.type))
-        for arg in reversed(self._args):
-            ctx.init_symbol(arg, vm.run_pop(), self)
-        try:
-            vm.run(self._instr, ctx)
-        except RtnException as e:
-            pass
-        ctx.pop_scope()
+        # ctx.push_func_scope(TypedValue(self, self._typed_sym.type))
+        with ctx.enter_scope(self.instrns.uid):
+            for arg in reversed(self._args):
+                ctx.init_symbol(arg, vm.run_pop(), self.pos)
+            try:
+                self.instrns.run( vm, ctx)
+            except RtnException as e:
+                pass
+        # ctx.pop_scope()
 
     def compile(self, vm, ctx):
-        ctx.push_func_scope(TypedValue(self, self._typed_sym.type))
-        for arg in self._args:
-            ctx.declare_symbol(arg, self)
-        # blk_code = vm.compile(self._instr, ctx)
-        blk_code = self._instr.compile(vm, ctx)
-        argList = ', '.join(('{} {}'.format(a.type_repr, a.string) for a in self._args))
-        code = ['{} {}({}){{'.format(self._typed_sym.type_repr, self._typed_sym.sym, argList)]
-        code += _indent(blk_code)
-        code += ['}']
-        ctx.pop_scope()
+        # ctx.push_func_scope(TypedValue(self, self._typed_sym.type))
+        with ctx.enter_scope(self.instrns.uid):
+            for arg in self._args:
+                ctx.declare_symbol(arg, self.pos)
+            # blk_code = vm.compile(self._instr, ctx)
+            blk_code = self.instrns.compile(vm, ctx)
+            argList = ', '.join(('{} {}'.format(a.type_repr, a.string) for a in self._args))
+            code = ['{} {}({}){{'.format(self._typed_sym.type_repr, self._typed_sym.sym, argList)]
+            code += _indent(blk_code)
+            code += ['}']
+        # ctx.pop_scope()
         # ctx
         return code
 
@@ -181,6 +183,22 @@ class Push(Instrn):
         return []
 
 
+class InitFunc(Instrn):
+    def __init__(self, typed_sym, typed_func, pos):
+        super().__init__(pos)
+        self._typed_sym = typed_sym
+        self._typed_func = typed_func
+        self._add_child_scope('func_blk', typed_func.value.instrns)
+
+    def run(self, vm, ctx):
+        ctx.init_symbol(self._typed_sym, self._typed_func, self.pos)
+
+    def compile(self, vm, ctx):
+        return self._typed_func.value.compile(vm, ctx)
+
+
+
+
 class Call(Instrn):
     def __init__(self, func_sym, argExprns, pos):
         super().__init__(pos)
@@ -188,10 +206,14 @@ class Call(Instrn):
         self._argExprns = argExprns
 
     def run(self, vm, ctx):
-        for instrs in self._argExprns:
-            vm.run(instrs, ctx)
+        for instrns in self._argExprns:
+            # vm.run(instrns, ctx)
+            instrns.run(vm, ctx)
 
-        vm.call(self._func_sym, self)
+        # vm.call(self._func_sym, self)
+        t_func = ctx.read(self._func_sym, VALUE, self.pos)
+        t_func.value.run(vm, ctx)
+
 
     def compile(self, vm, ctx):
         arg_code = ''
@@ -202,7 +224,7 @@ class Call(Instrn):
             arg_code += (', '  if arg_code else '') + vm.comp_pop().string
 
         call_code = '{}({})'.format(self._func_sym, arg_code)
-        type_ = ctx.read_symbol(self._func_sym, self.pos).type
+        type_ = ctx.read(self._func_sym, TYPE, self.pos)
         vm.comp_push(TypedStr(call_code, type_))
         return prep_code
 
@@ -213,10 +235,11 @@ class Rtn(Instrn):
 
     def run(self, vm, ctx):
         if self._exprn:
-            vm.run(self._exprn, ctx)
+            self._exprn.run(vm, ctx)
         else:
             vm.run_push(TypedValue(None, Void()))
-        check_assign_okay(ctx.func.type, vm.run_peek().type, self.pos)
+        # TODO Check assign
+        # check_assign_okay(ctx.func.type, vm.run_peek().type, self.pos)
         raise RtnException()
 
     def compile(self, vm, ctx):
@@ -225,7 +248,8 @@ class Rtn(Instrn):
             # code = vm.compile(self._exprn, ctx)
             code = self._exprn.compile(vm, ctx)
             rtn_val = vm.comp_pop()
-        check_assign_okay(ctx.func.type, rtn_val.type, self)
+        # TODO Check assign
+        # check_assign_okay(ctx.func.type, rtn_val.type, self)
         return 'return {};'.format(rtn_val.string if self._exprn else '')
 
 class Pop(Instrn):
