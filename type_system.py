@@ -3,9 +3,9 @@ from fixedint import *
 from exceptions import IllegalOperation, TypeMismatchException, UnrecognizedType
 import re
 import codecs
-from position import NoOne
+
 from typing import Union
-# from instructions import Func
+
 
 _ESCAPE_SEQUENCE_RE = re.compile(r'''
     ( \\U........      # 8-digit hex escapes
@@ -103,11 +103,6 @@ class TypedSym(_Typed):
     def string(self):
         return self.sym
 
-    # @property
-    # def cpp_repr(self):
-    #     return self
-
-
 
 
 class TypedStr(_Typed):
@@ -120,12 +115,6 @@ class TypedStr(_Typed):
     def __repr__(self):
         s = '(TypedStr {} {})'.format(self.string, self.type)
         return s
-
-    # @property
-    # def cpp_repr(self):
-    #     return self
-
-
 
 
 
@@ -210,9 +199,7 @@ def assign(l_type, right, pos):
     check_assign_okay(l_type, r_type, pos)
     value = right.value
 
-    # print('class',value.__class__)
-    # if isinstance(value, Func):
-        # return TypedValue(value, l_type)
+
 
     # hack for 'if instanceof(value, Func)'
     if 'instructions.Func' in str(value.__class__):

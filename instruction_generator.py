@@ -1,4 +1,3 @@
-# from scope_mgr import ScopeMgr
 from instruction_block import Block
 from lark.visitors import Interpreter
 from position import Position
@@ -21,15 +20,11 @@ def _get_sym_and_type(two_children, pos):
     )
 
 
-
-
 def add_position_arg(func):
     def wrapper(self, tree):
         pos = Position(self._fname, tree.line, tree.column)
         func(self, tree, pos)
     return wrapper
-
-
 
 
 
@@ -45,6 +40,8 @@ class _InstructionRecorder:
 
     def pop(self):
         return self._instrn_stack.pop()
+
+
 
 class InstructionGenerator(Interpreter):
     def __init__(self, fname):
@@ -64,7 +61,6 @@ class InstructionGenerator(Interpreter):
     def _visit_get_instrs(self, tree):
         self._instrn_recorder.push()
         self.visit(tree)
-        # instrns = self._instrn_recorder.instrns
         instrns = self._instrn_recorder.pop()
         return instrns
 
@@ -154,7 +150,6 @@ class InstructionGenerator(Interpreter):
         elsePos  = None
         if len(children) % 2 == 1: # if else block at end of if elif chain
             elseBlk = self._visit_get_instrs(children[-1])
-            # elsePos =
 
         start = len(children) - (len(children) % 2) - 2
 
@@ -199,8 +194,7 @@ class InstructionGenerator(Interpreter):
         typed_sym = TypedSym(sym, rtn_type)
         func = Func(typed_sym, argList, block, pos)
         typed_func = TypedValue(func, rtn_type)
-        # self._instrn_recorder.init_symbol(typed_sym, typed_func, pos)
-        # self._funcs.append((typed_sym, typed_func))
+
         self._instrn_recorder.add_instrn(InitFunc(typed_sym, typed_func, pos))
 
     @add_position_arg

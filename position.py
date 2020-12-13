@@ -10,8 +10,3 @@ class Position(_Position):
     def __repr__(self):
         return self.__str__()
 
-class _NoOne:
-    def __init__(self):
-        self.pos = _Position('no where', 0, 0)
-
-NoOne = _NoOne()

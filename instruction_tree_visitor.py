@@ -1,27 +1,3 @@
-# class InstrnTreeVisitor:
-#     def __init__(self):
-#         pass
-
-#     def start(self, instrns):
-#         self.visit_new_scope('root', instrns)
-
-#     def visit_blk(self, instrns):
-#         for instrn in instrns:
-#             self.visit_instrn(instrn)
-
-
-#     def visit_children(self, instrn):
-#         for name, child_scope in instrn.child_scopes.items():
-#             self.visit_new_scope(name, child_scope)
-
-
-#     def visit_instrn(self, instrn):
-#         self.visit_children(instrn)
-
-#     def visit_new_scope(self, name, instrns):
-#         self.visit_blk(instrns)
-
-
 class InstrnTreeVisitor:
     def __init__(self, error=False):
         self._error = error
@@ -36,7 +12,6 @@ class InstrnTreeVisitor:
     def visit_instrn(self, instrn):
         method_name = 'visit_' + type(instrn).__name__
         try:
-            # print('method_name:', method_name)
             method = getattr(self, method_name)
         except AttributeError as e:
             if self._error:

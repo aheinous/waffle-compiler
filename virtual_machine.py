@@ -1,7 +1,6 @@
-from instructions import Func
-from type_system import *
-from copy import deepcopy
 
+
+from type_system import TypedStr, TypedValue
 
 
 class VirtualMachine:
@@ -30,11 +29,6 @@ class VirtualMachine:
     def run_peek(self):
         return self._run_stack[-1]
 
-
-
-    # def call(self, sym, pos):
-    #     func = self.run_ctx.read_symbol(sym, pos).value
-    #     func.run(self)
 
 
 

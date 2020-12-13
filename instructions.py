@@ -3,16 +3,6 @@ from context import TYPE, VALUE
 from exceptions import RtnException
 from type_system import TypedValue, TypedSym, TypedStr, Void, op_res, op_res_type, op_cpp_repr, type_cpp_repr, check_assign_okay
 
-def _indent(strlist):
-    for i in range(len(strlist)):
-        strlist[i] = '\t' + strlist[i]
-    return strlist
-
-
-
-# call_stack = CallStack()
-
-
 
 
 class Func:
@@ -27,31 +17,6 @@ class Func:
     def rtn_type(self):
         return self.typed_sym.type
 
-    def run(self, vm, ctx):
-        # ctx.push_func_scope(TypedValue(self, self._typed_sym.type))
-        with call_stack.push(self), ctx.enter_scope(self.instrns.uid):
-            for arg in reversed(self._args):
-                ctx.init_symbol(arg, vm.run_pop(), self.pos)
-            try:
-                self.instrns.run( vm, ctx)
-            except RtnException as e:
-                pass
-        # ctx.pop_scope()
-
-    def compile(self, vm, ctx):
-        # ctx.push_func_scope(TypedValue(self, self._typed_sym.type))
-        with call_stack.push(self), ctx.enter_scope(self.instrns.uid):
-            for arg in self._args:
-                ctx.declare_symbol(arg, self.pos)
-            # blk_code = vm.compile(self._instr, ctx)
-            blk_code = self.instrns.compile(vm, ctx)
-            argList = ', '.join(('{} {}'.format(a.type_repr, a.string) for a in self._args))
-            code = ['{} {}({}){{'.format(self._typed_sym.type_repr, self._typed_sym.sym, argList)]
-            code += _indent(blk_code)
-            code += ['}']
-        # ctx.pop_scope()
-        # ctx
-        return code
 
 
 class Instrn:
@@ -62,14 +27,6 @@ class Instrn:
     def _add_child_scope(self, name, child_scope):
         self.child_scopes[name] = child_scope
 
-
-
-
-    def run(self, vm, ctx):
-        raise NotImplementedError()
-
-    def compile(self, vm, ctx):
-        raise NotImplementedError()
 
     def __repr__(self):
         s = self.__class__.__name__ + ' '
@@ -83,25 +40,6 @@ class BinOp(Instrn):
         super().__init__(pos)
         self.op = op
 
-    def run(self, vm, ctx):
-        right = vm.run_pop()
-        left = vm.run_pop()
-        vm.run_push(op_res(self.op, left, right, self))
-
-    def compile(self, vm, ctx):
-        right = vm.comp_pop()
-        left = vm.comp_pop()
-        res_type = op_res_type(self.op, left.type, right.type, self)
-
-        tmp_name = 'tmp_{}'.format(ctx.next_tmp())
-        vm.comp_push(TypedStr(tmp_name, res_type))
-
-        code = '{} {} = {} {} {};'.format(  res_type.repr,
-                                            tmp_name,
-                                            left.string,
-                                            self.op.repr,
-                                            right.string)
-        return code
 
 
 class UnaryOp(Instrn):
@@ -109,21 +47,6 @@ class UnaryOp(Instrn):
         super().__init__(pos)
         self.op = op
 
-    def run(self, vm, ctx):
-        operand = vm.run_pop()
-        vm.run_push(op_res(self.op, operand, self))
-
-    def compile(self, vm, ctx):
-        operand = vm.comp_pop()
-        res_type = op_res_type(self.op, operand.type, self)
-        op_repr = op_cpp_repr(self.op)
-        vm.comp_push(
-            TypedStr(
-                '{}{}'.format(op_repr, operand.string),
-                res_type
-            )
-        )
-        return ''
 
 class Assign(Instrn):
     def __init__(self, sym, pos):
@@ -131,14 +54,6 @@ class Assign(Instrn):
         assert  isinstance(sym, str)
         self.sym = sym
 
-    def run(self, vm, ctx):
-        typed_value = vm.run_pop()
-        ctx.assign_symbol(self._sym, typed_value, self)
-
-    def compile(self, vm, ctx):
-        typed_str = vm.comp_pop()
-        ctx.check_assign_okay(self.sym, typed_str, self.pos)
-        return '{} = {};'.format(self.sym, typed_str.string)
 
 class Decl(Instrn):
     def __init__(self, typed_sym, pos):
@@ -146,13 +61,6 @@ class Decl(Instrn):
         assert isinstance(typed_sym, TypedSym)
         self.typed_sym = typed_sym
 
-    def run(self, vm, ctx):
-        ctx.declare_symbol(self.typed_sym, self)
-
-    def compile(self, vm, ctx):
-        ctx.declare_symbol(self.typed_sym, self)
-        type_repr = type_cpp_repr(self.typed_sym.type)
-        return '{} {};'.format(type_repr, self.typed_sym.sym)
 
 
 class Pushi(Instrn):
@@ -161,12 +69,6 @@ class Pushi(Instrn):
         assert isinstance(value, TypedValue)
         self.value = value
 
-    def run(self, vm, ctx):
-        vm.run_push(self._value)
-
-    def compile(self, vm, ctx):
-        vm.comp_push(self._value.cpp_repr)
-        return []
 
 
 class Push(Instrn):
@@ -174,16 +76,6 @@ class Push(Instrn):
         super().__init__(pos)
         self.sym = sym
 
-    def run(self, vm, ctx):
-        vm.run_push(ctx.read(self.sym, VALUE, self.pos))
-
-    def compile(self, vm, ctx):
-
-        type_ = ctx.read(self.sym, TYPE, self.pos)
-        typed_str = TypedStr(self.sym, type_)
-
-        vm.comp_push(typed_str)
-        return []
 
 
 class InitFunc(Instrn):
@@ -192,13 +84,6 @@ class InitFunc(Instrn):
         self.typed_sym = typed_sym
         self.typed_func = typed_func
         self._add_child_scope('func_blk', typed_func.value.instrns)
-
-    def run(self, vm, ctx):
-        ctx.init_symbol(self._typed_sym, self._typed_func, self.pos)
-
-    def compile(self, vm, ctx):
-        ctx.init_symbol(self._typed_sym, self._typed_func, self.pos)
-        return self._typed_func.value.compile(vm, ctx)
 
 
 
@@ -209,62 +94,15 @@ class Call(Instrn):
         self.func_sym = func_sym
         self.arg_exprns = arg_exprns
 
-    def run(self, vm, ctx):
-        for instrns in self.arg_exprns:
-            # vm.run(instrns, ctx)
-            instrns.run(vm, ctx)
-
-        # vm.call(self._func_sym, self)
-        t_func = ctx.read(self._func_sym, VALUE, self.pos)
-        t_func.value.run(vm, ctx)
-
-
-    def compile(self, vm, ctx):
-        arg_code = ''
-        prep_code = []
-        for argExprn in self._argExprns:
-            # prep_code += vm.compile(argExprn, ctx)
-            prep_code += argExprn.compile(vm, ctx)
-            arg_code += (', '  if arg_code else '') + vm.comp_pop().string
-
-        call_code = '{}({})'.format(self._func_sym, arg_code)
-        type_ = ctx.read(self._func_sym, TYPE, self.pos)
-        vm.comp_push(TypedStr(call_code, type_))
-        return prep_code
 
 class Rtn(Instrn):
     def __init__(self, exprn, pos):
         super().__init__(pos)
         self.exprn = exprn
 
-    def run(self, vm, ctx):
-        if self._exprn:
-            self._exprn.run(vm, ctx)
-        else:
-            vm.run_push(TypedValue(None, Void()))
-        # TODO Check assign
-        check_assign_okay(call_stack.peek().rtn_type, vm.run_peek().type, self.pos)
-        raise RtnException()
-
-    def compile(self, vm, ctx):
-        rtn_val = TypedValue(None, Void())
-        if self._exprn:
-            # code = vm.compile(self._exprn, ctx)
-            code = self._exprn.compile(vm, ctx)
-            rtn_val = vm.comp_pop()
-        # TODO Check assign
-        # check_assign_okay(ctx.func.type, rtn_val.type, self)
-        check_assign_okay(call_stack.peek().rtn_type, rtn_val.type, self.pos)
-        return 'return {};'.format(rtn_val.string if self._exprn else '')
 
 class Pop(Instrn):
-    def run(self, vm, ctx):
-        vm.run_pop()
-
-    def compile(self, vm, ctx):
-        vm.comp_pop()
-        return ''
-
+    pass
 
 class IfElse(Instrn):
     def __init__(self, condBlk, ifBlk, elseBlk, pos):
@@ -279,39 +117,6 @@ class IfElse(Instrn):
         self.elseBlk = elseBlk
 
 
-    def run(self, vm, ctx):
-        # vm.run(self._condBlk, ctx)
-        self._condBlk.run(vm, ctx)
-        cond = vm.run_pop().value
-        # with ctx.raii_push_scope():
-        if cond:
-            with ctx.enter_scope(self._ifBlk.uid):
-                # vm.run(self._ifBlk, ctx)
-                self._ifBlk.run(vm,ctx)
-        else:
-            with ctx.enter_scope(self._elseBlk.uid):
-                # vm.run(self._elseBlk, ctx)
-                self._elseBlk.run(vm, ctx)
-
-    def compile(self, vm, ctx):
-        # code = vm.compile(self._condBlk, ctx)
-        code = self._condBlk.compile(vm, ctx)
-
-        cond = vm.comp_pop()
-        code += ['if(' + cond.string + '){']
-
-        with ctx.enter_scope(self._ifBlk.uid):
-            # code += _indent(vm.compile(self._ifBlk, ctx))
-            code += _indent(self._ifBlk.compile(vm, ctx))
-
-        if self._elseBlk:
-            code += ['} else {']
-            with ctx.enter_scope(self._elseBlk.uid):
-                # code += _indent(vm.compile(self._elseBlk, ctx))
-                code += _indent(self._elseBlk.compile(vm, ctx))
-
-        code += ['}']
-        return code
 
 class WhileLoop(Instrn):
     def __init__(self, condBlk, loop, pos):
@@ -321,34 +126,7 @@ class WhileLoop(Instrn):
 
         self._add_child_scope('loop', loop)
 
-    def run(self, vm, ctx):
-        while True:
-            # vm.run(self._condBlk, ctx)
-            self._condBlk.run(vm, ctx)
-            cond = vm.run_pop()
-            if not cond.value:
-                break
-            with ctx.enter_scope(self.loop.uid):
-                # vm.run(self._loop, ctx)
-                self.loop.run(vm, ctx)
 
-    def compile(self, vm, ctx):
-        code = []
-
-        code += ['while(1){']
-        # blockCode = vm.compile(self._condBlk, ctx)
-        blockCode = self._condBlk.compile(vm, ctx)
-        blockCode += ['if(!(' + str(vm.comp_pop().string) +')){']
-        blockCode += _indent(['break;'])
-        blockCode += ['}']
-        # with ctx.raii_push_scope():
-        with ctx.enter_scope(self._loop.uid):
-            # blockCode += vm.compile(self._loop, ctx)
-            blockCode += self._loop.compile(vm, ctx)
-        code += _indent(blockCode)
-        code += ['}']
-
-        return code
 
 
 

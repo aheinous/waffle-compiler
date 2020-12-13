@@ -10,10 +10,6 @@ VALUE = 'VALUE'
 TYPE = 'TYPE'
 
 
-
-
-
-
 class SymbolTable:
     def __init__(self):
         self._tbl = {}
@@ -21,7 +17,6 @@ class SymbolTable:
     def insert(self, sym, field, value):
         if sym not in self._tbl:
             self._tbl[sym] = {}
-        # assert field not in self._tbl[sym]
         self._tbl[sym][field] = value
 
     def read(self, sym, field):
@@ -45,13 +40,6 @@ class TestSymbolTable(unittest.TestCase):
 
 class _Scope:
     def __init__(self):
-        '''
-        uid
-        symbol_tbl
-        persists:Bool
-        parent
-        instanceVars
-        '''
         self.name = ''
         self.uid = None
         self.instance_uid = None
@@ -62,8 +50,6 @@ class _Scope:
         self.children = []
         self.tmp_cnt = 0
 
-    # def typed_value(self, sym):
-    #     return TypedValue(self.symbol_values[sym], self.symbol_tbl.read(sym, TYPE))
 
     def insert(self, sym, field, value):
         if sym not in self.symbol_tbl:
@@ -76,9 +62,7 @@ class _Scope:
             return
 
         self.symbol_tbl.insert(sym, field, value)
-        # if field == TYPE:
-        #     assert sym not in self.symbol_values # redeclaring TYPE
-        #     self.symbol_values[sym] = TypedValue(None, value)
+
 
     def read(self, sym, field):
         if field == VALUE:
@@ -149,7 +133,6 @@ class ScopeMaker(InstrnTreeVisitor):
 class RAII_Scope:
     def __init__(self, ctx):
         self._ctx = ctx
-        # self._prev_scope = prev_scope
 
     def __enter__(self):
         pass
@@ -178,8 +161,6 @@ class Context:
         self._cur_scope = self._scopes_by_uid[uid]
         return RAII_Scope(self)
 
-    # def push_scope(self, uid):
-
 
     def _exit_scope(self):
         self._cur_scope.symbol_values = {}
@@ -194,12 +175,8 @@ class Context:
         type_ = typed_sym.type
         if sym in self._cur_scope \
             and self._cur_scope.has_field(sym,VALUE):
-            # print(sym)
-            # read_res= self._cur_scope.read(sym,VALUE)
-            # print(read_res)
             raise SymbolReassignment(pos)
         self._cur_scope.insert(sym, TYPE, type_)
-        # self.cur_scope.symbol_values[typed_sym.sym] = None
 
 
     def _scope_hierarchy(self):
@@ -211,7 +188,6 @@ class Context:
             scope = scope.parent
 
     def assign_symbol(self, sym, typed_value, pos):
-        # print('assign {} {}'.format(sym, typed_value))
         for scope in self._scope_hierarchy():
             if sym in scope:
                 new_value = type_sys_assign(scope.read(sym, TYPE), typed_value, pos)
@@ -227,20 +203,12 @@ class Context:
                 return
         raise SymbolNotFound(pos)
 
-    # def read_symbol(self, sym, pos) -> TypedValue:
-    #     for scope in self._scope_hierarchy():
-    #         if sym in scope:
-    #             return scope.read(sym, VALUE)
-    #     raise SymbolNotFound(pos)
 
     def read(self, sym, field, pos):
         for scope in self._scope_hierarchy():
             if sym in scope:
                 return scope.read(sym, field)
         raise SymbolNotFound(pos)
-
-    # def add_instrn(self, instrn):
-    #     self.cur_scope.instrns.append(instrn)
 
     def next_tmp(self):
         self._cur_scope.tmp_cnt += 1
@@ -252,41 +220,5 @@ class Context:
                 return True
         return False
 
-
-# def unittests():
-
-
 if __name__ == '__main__':
-    # unittest()
     unittest.main()
-
-    # def init_symbol(self, typed_sym, typed_value, pos):
-    #     self.declare_symbol(typed_sym, pos)
-    #     self.assign_symbol(typed_sym.sym, typed_value, pos)
-
-    # def declare_symbol(self, typed_sym, pos):
-    #     if typed_sym.sym in self.cur_scope.symbols:
-    #         raise SymbolReassignment(pos)
-    #     self.cur_scope.symbols[typed_sym.sym] = TypedValue(None, typed_sym.type)
-
-
-    # def assign_symbol(self, sym, typed_value, pos):
-    #     for scope in reversed(self._scope_stack):
-    #         if sym in scope.symbols:
-    #             new_value = type_sys_assign(scope.symbols[sym], typed_value, pos)
-    #             scope.symbols[sym] = new_value
-    #             return
-    #     raise SymbolNotFound(pos)
-
-    # def check_assign_okay(self, sym, something_typed, pos):
-    #     for scope in reversed(self._scope_stack):
-    #         if sym in scope.symbols:
-    #             type_sys_verify_assign(scope.symbols[sym].type, something_typed.type, pos)
-    #             return
-    #     raise SymbolNotFound(pos)
-
-    # def read_symbol(self, sym, pos) -> TypedValue:
-    #     for scope in reversed(self._scope_stack):
-    #         if sym in scope.symbols:
-    #             return scope.symbols[sym]
-    #     raise SymbolNotFound(pos)
