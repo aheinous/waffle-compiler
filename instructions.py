@@ -159,7 +159,7 @@ class Pushi(Instrn):
     def __init__(self, value, pos):
         super().__init__(pos)
         assert isinstance(value, TypedValue)
-        self._value = value
+        self.value = value
 
     def run(self, vm, ctx):
         vm.run_push(self._value)
@@ -189,8 +189,8 @@ class Push(Instrn):
 class InitFunc(Instrn):
     def __init__(self, typed_sym, typed_func, pos):
         super().__init__(pos)
-        self._typed_sym = typed_sym
-        self._typed_func = typed_func
+        self.typed_sym = typed_sym
+        self.typed_func = typed_func
         self._add_child_scope('func_blk', typed_func.value.instrns)
 
     def run(self, vm, ctx):
@@ -271,12 +271,12 @@ class IfElse(Instrn):
         super().__init__(pos)
         # ifBlk.uid
         # elseBlk.uid
-        self._condBlk = condBlk
+        self.condBlk = condBlk
         self._add_child_scope('if_blk', ifBlk)
         self._add_child_scope('else_blk', elseBlk)
 
-        self._ifBlk = ifBlk
-        self._elseBlk = elseBlk
+        self.ifBlk = ifBlk
+        self.elseBlk = elseBlk
 
 
     def run(self, vm, ctx):
@@ -316,7 +316,7 @@ class IfElse(Instrn):
 class WhileLoop(Instrn):
     def __init__(self, condBlk, loop, pos):
         super().__init__(pos)
-        self._condBlk = condBlk
+        self.condBlk = condBlk
         self.loop = loop
 
         self._add_child_scope('loop', loop)

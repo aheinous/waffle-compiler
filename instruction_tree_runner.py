@@ -16,65 +16,56 @@ class InstrnTreeRunner(InstrnTreeVisitor):
         self.visit_blk(instrn_blk)
 
 
-    def visit_Assign(self, instrn):
+    def visit_Assign(self, assign):
         typed_value = self.vm.run_pop()
-        self.ctx.assign_symbol(instrn.sym, typed_value, instrn.pos)
+        self.ctx.assign_symbol(assign.sym, typed_value, assign.pos)
 
     def visit_Decl(self, decl):
         self.ctx.declare_symbol(decl.typed_sym, decl.pos)
 
-    def visit_Push(self, instrn):
-        self.vm.run_push(self.ctx.read(instrn.sym, VALUE, instrn.pos))
+    def visit_Push(self, push):
+        self.vm.run_push(self.ctx.read(push.sym, VALUE, push.pos))
 
-    def visit_Pushi(self, instrn):
-        self.vm.run_push(instrn._value)
+    def visit_Pushi(self, push):
+        self.vm.run_push(push.value)
 
-    def visit_Pop(self, instrn):
+    def visit_Pop(self, pop):
         self.vm.run_pop()
 
-    def visit_BinOp(self, instrn):
+    def visit_BinOp(self, binop):
         right = self.vm.run_pop()
         left = self.vm.run_pop()
-        self.vm.run_push(op_res(instrn.op, left, right, instrn.pos))
+        self.vm.run_push(op_res(binop.op, left, right, binop.pos))
 
 
-    def visit_UnaryOp(self, instrn):
+    def visit_UnaryOp(self, unaryop):
         operand = self.vm.run_pop()
-        self.vm.run_push(op_res(instrn.op, operand, instrn.pos))
+        self.vm.run_push(op_res(unaryop.op, operand, unaryop.pos))
 
 
-    def visit_IfElse(self, instrn):
-        # self.vm.run(self._condBlk, ctx)
-        # self._condBlk.run(self.vm, self.ctx)
-        self.run(instrn._condBlk)
+    def visit_IfElse(self, ifelse):
+        self.run(ifelse.condBlk)
         cond = self.vm.run_pop().value
-        # with self.ctx.raii_push_scope():
         if cond:
-            with self.ctx.enter_scope(instrn._ifBlk.uid):
-                # self.vm.run(instrn._ifBlk, self.ctx)
-                self.run(instrn._ifBlk)
+            with self.ctx.enter_scope(ifelse.ifBlk.uid):
+                self.run(ifelse.ifBlk)
         else:
-            with self.ctx.enter_scope(instrn._elseBlk.uid):
-                # self.vm.run(instrn._elseBlk, self.ctx)
-                self.run(instrn._elseBlk)
+            with self.ctx.enter_scope(ifelse.elseBlk.uid):
+                self.run(ifelse.elseBlk)
 
 
-    def visit_WhileLoop(self, instrn):
+    def visit_WhileLoop(self, while_loop):
         while True:
-            # self.vm.run(self._condBlk, self.ctx)
-            # self._condBlk.run(self.vm, self.ctx)
-            self.run(instrn._condBlk)
+            self.run(while_loop.condBlk)
             cond = self.vm.run_pop()
             if not cond.value:
                 break
-            with self.ctx.enter_scope(instrn.loop.uid):
-                # self.vm.run(self._loop, self.ctx)
-                # self._loop.run(self.vm, self.ctx)
-                self.run(instrn.loop)
+            with self.ctx.enter_scope(while_loop.loop.uid):
+                self.run(while_loop.loop)
 
 
-    def visit_InitFunc(self, instrn):
-        self.ctx.init_symbol(instrn._typed_sym, instrn._typed_func, instrn.pos)
+    def visit_InitFunc(self, init_func):
+        self.ctx.init_symbol(init_func.typed_sym, init_func.typed_func, init_func.pos)
 
     def visit_Call(self, call):
         # Call
@@ -88,7 +79,6 @@ class InstrnTreeRunner(InstrnTreeVisitor):
             for arg in reversed(func.args):
                 self.ctx.init_symbol(arg, self.vm.run_pop(), func.pos)
             try:
-                # self.instrns.run( self.vm, self.ctx)
                 self.run(func.instrns)
             except RtnException as e:
                 pass

@@ -1,4 +1,5 @@
 #! /usr/bin/python3
+from instruction_tree_compiler import InstrnTreeCompiler
 from instruction_tree_runner import InstrnTreeRunner
 from call_stack import CallStack
 from instruction_tree_visitor import InstrnTreeVisitor, InstrnTreePrinter
@@ -69,10 +70,13 @@ def compile(src_fname):
 
 
     print('#### compile')
-    # with ctx.enter_scope(instrn_tree.uid):
+    with ctx.enter_scope(instrn_tree.uid):
+        compiler = InstrnTreeCompiler(vm, ctx, call_stack)
+        compiler.compile(instrn_tree)
+        code = compiler.code
     #     # code = vm.compile(instrn_tree)
     #     code = instrn_tree.compile(vm, ctx)
-    #     print('\n'.join(code))
+        print('\n'.join(code))
 
     print('==============================================================')
     # sm = ScopeMgr()
