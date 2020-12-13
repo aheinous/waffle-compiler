@@ -189,7 +189,8 @@ def op_cpp_repr(op) -> str:
                 Add, '+',
                 Sub, '-',
                 Mul, '*',
-                Div, '/'
+                Div, '/',
+                Neg, '-'
                 )
 
 def check_assign_okay(l_type, r_type, pos):

@@ -1,11 +1,10 @@
 #! /usr/bin/python3
-# from instructions import InstrnTreePrinter, InstrnTreeVisitor
-from instruction_tree_visitor import InstrnTreePrinter
+from instruction_tree_runner import InstrnTreeRunner
+from call_stack import CallStack
+from instruction_tree_visitor import InstrnTreeVisitor, InstrnTreePrinter
 from context import Context, ScopeTreePrinter
-# from scope_mgr import ScopeMgr
 from lark import Lark
-from lark.exceptions import LarkError, UnexpectedInput
-
+from lark.exceptions import LarkError
 from virtual_machine import VirtualMachine
 from instruction_generator import InstructionGenerator
 
@@ -27,17 +26,20 @@ def compile(src_fname):
     print("### Instruction Generator")
     gen = InstructionGenerator(src_fname)
     gen.visit(tree)
-    instructions = gen.instructions
+    instrn_tree = gen.instructions
 
-    print()
+    # hifi = HiFiInstrnTreeVisitor()
+    # hifi.visit_blk(instrn_tree)
+
+    print('### Instruction Tree')
     itp = InstrnTreePrinter()
-    itp.visit(instructions)
+    itp.start(instrn_tree)
 
 
     print('### scope maker')
 
     scopeMaker = ScopeMaker()
-    scopeMaker.start(instructions)
+    scopeMaker.start(instrn_tree)
 
 
     print()
@@ -50,27 +52,32 @@ def compile(src_fname):
     ctx = Context()
     ctx.add_new_scopes(scopeMaker.scopes)
 
+
     print('##### run')
 
+    call_stack = CallStack()
+
     vm = VirtualMachine()
-    # with ctx.enter_scope(instructions.uid):
-    #     instructions.run(vm, ctx)
-    #     print()
-    #     scopePrinter = ScopeTreePrinter()
-    #     scopePrinter.visit('root', scopeMaker.scopes[0])
-    #     print()
+    with ctx.enter_scope(instrn_tree.uid):
+        # instrn_tree.run(vm, ctx)
+        runner = InstrnTreeRunner(vm, ctx, call_stack)
+        runner.run(instrn_tree)
+        print()
+        scopePrinter = ScopeTreePrinter()
+        scopePrinter.visit('root', scopeMaker.scopes[0])
+        print()
 
 
     print('#### compile')
-    with ctx.enter_scope(instructions.uid):
-        # code = vm.compile(instructions)
-        code = instructions.compile(vm, ctx)
-        print('\n'.join(code))
+    # with ctx.enter_scope(instrn_tree.uid):
+    #     # code = vm.compile(instrn_tree)
+    #     code = instrn_tree.compile(vm, ctx)
+    #     print('\n'.join(code))
 
     print('==============================================================')
     # sm = ScopeMgr()
 
-    # sm.cur_scope.instrns = instructions
+    # sm.cur_scope.instrns = instrn_tree
     # for typed_name, typed_func in gen.functions:
     #     sm.init_symbol(typed_name, typed_func, typed_func.value.pos)
 

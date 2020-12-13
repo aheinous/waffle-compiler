@@ -7,9 +7,9 @@ class Block(list):
     def uid(self):
         return self.pos
 
-    def run(self, machine, context):
-        for instrn in self:
-            instrn.run(machine, context)
+    # def run(self, machine, context):
+    #     for instrn in self:
+    #         instrn.run(machine, context)
 
     def compile(self, machine, context):
         code = []

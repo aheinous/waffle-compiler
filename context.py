@@ -117,6 +117,7 @@ class ScopeTreePrinter(ScopeTreeVisitor):
 class ScopeMaker(InstrnTreeVisitor):
 
     def __init__(self):
+        super().__init__()
         self._stack = []
         self._scopes = []
 
@@ -138,11 +139,11 @@ class ScopeMaker(InstrnTreeVisitor):
     def scopes(self) -> list :
         return self._scopes
 
-    def on_visit_new_scope(self, name, instrns):
+    def visit_new_scope(self, name, instrns):
         if not instrns:
             return
         self._push(name, instrns.uid, instrns)
-        self.visit(instrns)
+        self.visit_blk(instrns)
         self._pop()
 
 class RAII_Scope:
