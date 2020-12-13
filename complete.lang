@@ -119,3 +119,9 @@ while 0 {
         //return
     }
 }
+
+func fx () : int {
+    return 5
+}
+
+//s:string = fx()

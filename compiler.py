@@ -53,12 +53,12 @@ def compile(src_fname):
     print('##### run')
 
     vm = VirtualMachine()
-    with ctx.enter_scope(instructions.uid):
-        instructions.run(vm, ctx)
-        print()
-        scopePrinter = ScopeTreePrinter()
-        scopePrinter.visit('root', scopeMaker.scopes[0])
-        print()
+    # with ctx.enter_scope(instructions.uid):
+    #     instructions.run(vm, ctx)
+    #     print()
+    #     scopePrinter = ScopeTreePrinter()
+    #     scopePrinter.visit('root', scopeMaker.scopes[0])
+    #     print()
 
 
     print('#### compile')

@@ -1,15 +1,18 @@
 from instruction_tree_visitor import InstrnTreeVisitor
 import unittest
 from exceptions import SymbolNotFound, SymbolReassignment
-from type_system import (   TypedValue,
-                            check_assign_okay as type_sys_verify_assign,
+from type_system import (   check_assign_okay as type_sys_verify_assign,
                             assign as type_sys_assign
                             )
-from enum import IntEnum, auto
 
 
-VALUE = 0
-TYPE = 1
+VALUE = 'VALUE'
+TYPE = 'TYPE'
+
+
+
+
+
 
 class SymbolTable:
     def __init__(self):

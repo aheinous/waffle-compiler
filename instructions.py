@@ -1,3 +1,4 @@
+from call_stack import CallStack
 from context import TYPE, VALUE
 from exceptions import RtnException
 from type_system import TypedValue, TypedSym, TypedStr, Void, op_res, op_res_type, op_cpp_repr, type_cpp_repr, check_assign_okay
@@ -9,7 +10,7 @@ def _indent(strlist):
 
 
 
-
+call_stack = CallStack()
 
 
 
@@ -22,9 +23,13 @@ class Func:
         self.instrns = instrns
         self.pos = pos
 
+    @property
+    def rtn_type(self):
+        return self._typed_sym.type
+
     def run(self, vm, ctx):
         # ctx.push_func_scope(TypedValue(self, self._typed_sym.type))
-        with ctx.enter_scope(self.instrns.uid):
+        with call_stack.push(self), ctx.enter_scope(self.instrns.uid):
             for arg in reversed(self._args):
                 ctx.init_symbol(arg, vm.run_pop(), self.pos)
             try:
@@ -35,7 +40,7 @@ class Func:
 
     def compile(self, vm, ctx):
         # ctx.push_func_scope(TypedValue(self, self._typed_sym.type))
-        with ctx.enter_scope(self.instrns.uid):
+        with call_stack.push(self), ctx.enter_scope(self.instrns.uid):
             for arg in self._args:
                 ctx.declare_symbol(arg, self.pos)
             # blk_code = vm.compile(self._instr, ctx)
@@ -194,6 +199,7 @@ class InitFunc(Instrn):
         ctx.init_symbol(self._typed_sym, self._typed_func, self.pos)
 
     def compile(self, vm, ctx):
+        ctx.init_symbol(self._typed_sym, self._typed_func, self.pos)
         return self._typed_func.value.compile(vm, ctx)
 
 
@@ -239,7 +245,7 @@ class Rtn(Instrn):
         else:
             vm.run_push(TypedValue(None, Void()))
         # TODO Check assign
-        # check_assign_okay(ctx.func.type, vm.run_peek().type, self.pos)
+        check_assign_okay(call_stack.peek().rtn_type, vm.run_peek().type, self.pos)
         raise RtnException()
 
     def compile(self, vm, ctx):
@@ -250,6 +256,7 @@ class Rtn(Instrn):
             rtn_val = vm.comp_pop()
         # TODO Check assign
         # check_assign_okay(ctx.func.type, rtn_val.type, self)
+        check_assign_okay(call_stack.peek().rtn_type, rtn_val.type, self.pos)
         return 'return {};'.format(rtn_val.string if self._exprn else '')
 
 class Pop(Instrn):
