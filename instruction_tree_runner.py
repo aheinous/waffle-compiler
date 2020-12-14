@@ -5,11 +5,12 @@ from instruction_tree_visitor import InstrnTreeVisitor
 
 
 class InstrnTreeRunner(InstrnTreeVisitor):
-    def __init__(self, vm, ctx, call_stack):
+    def __init__(self, vm, ctx, call_stack, compiler):
         super().__init__()
         self.vm = vm
         self.ctx = ctx
         self.call_stack = call_stack
+        self.compiler = compiler
 
 
     def run(self, instrn_blk):
@@ -95,3 +96,8 @@ class InstrnTreeRunner(InstrnTreeVisitor):
         raise RtnException()
 
 
+    def visit_Mixin(self, mixin):
+        self.run(mixin.exprn)
+        s = self.vm.run_pop()
+        print(s)
+        self.compiler.run_exprn_code(s.value, mixin.pos)

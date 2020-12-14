@@ -200,7 +200,7 @@ def assign(l_type, right, pos):
     value = right.value
 
 
-
+    # TODO
     # hack for 'if instanceof(value, Func)'
     if 'instructions.Func' in str(value.__class__):
         return TypedValue(value, l_type)

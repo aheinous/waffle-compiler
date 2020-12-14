@@ -1,7 +1,7 @@
 from instruction_block import Block
 from lark.visitors import Interpreter
 from position import Position
-from instructions import Func, Assign, InitFunc, Push, Pushi, Pop, Decl, IfElse, WhileLoop, Rtn, Call, BinOp, UnaryOp
+from instructions import Func, Assign, InitFunc, Mixin, Push, Pushi, Pop, Decl, IfElse, WhileLoop, Rtn, Call, BinOp, UnaryOp
 from type_system import make_type, make_value, TypedValue, TypedSym, Add, Sub, Mul, Div, Neg, Int, Float, String
 
 def _get_sym(sym):
@@ -22,7 +22,7 @@ def _get_sym_and_type(two_children, pos):
 
 def add_position_arg(func):
     def wrapper(self, tree):
-        pos = Position(self._fname, tree.line, tree.column)
+        pos = Position(self._fname, tree.line, tree.column, tree.end_line, tree.end_column)
         func(self, tree, pos)
     return wrapper
 
@@ -30,7 +30,7 @@ def add_position_arg(func):
 
 class _InstructionRecorder:
     def __init__(self):
-        self._instrn_stack = [Block()]
+        self.reset()
 
     def add_instrn(self, instrn):
         self._instrn_stack[-1].append(instrn)
@@ -41,18 +41,28 @@ class _InstructionRecorder:
     def pop(self):
         return self._instrn_stack.pop()
 
+    def reset(self):
+        self._instrn_stack = [Block()]
+
 
 
 class InstructionGenerator(Interpreter):
-    def __init__(self, fname):
+    def __init__(self):
         super().__init__()
-        self._fname = fname
+        self._fname = None
         self._instrn_recorder = _InstructionRecorder()
         self._funcs = []
 
-    @property
-    def instructions(self):
-        return self._instrn_recorder._instrn_stack[0]
+    def gen_instrn_tree(self, ast, src_fname):
+        self._fname = src_fname
+        self.visit(ast)
+        tree = self._instrn_recorder.pop()
+        self._instrn_recorder.reset()
+        return tree
+
+    # @property
+    # def instructions(self):
+    #     return self._instrn_recorder._instrn_stack[0]
 
     @property
     def functions(self):
@@ -216,3 +226,9 @@ class InstructionGenerator(Interpreter):
         if len(tree.children):
             exprn = self._visit_get_instrs(tree.children[0])
         self._instrn_recorder.add_instrn(Rtn(exprn, pos))
+
+    @add_position_arg
+    def mixin(self, tree, pos):
+        exprn = self._visit_get_instrs(tree.children[0])
+        self._instrn_recorder.add_instrn(Mixin(exprn, pos))
+

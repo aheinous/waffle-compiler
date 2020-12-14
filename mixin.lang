@@ -1,0 +1,14 @@
+func gen_code(s:string): string {
+	return "100 * " + s
+}
+
+
+x:int = mixin("5" + "7")
+
+y:int = mixin("5+2 ???")
+
+a:int = mixin(gen_code("5"))
+
+//mixin("z:int = 17*3")
+
+w:int = 5 + mixin("2")

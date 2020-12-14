@@ -11,14 +11,15 @@ ADDRS : "&"+
 type : [ADDRS] CNAME
 
 ?statement: assign
-			| decl
-			| decl_init
-			| if_elif
-			| "while" exprn block -> while_loop
-			| block
 			| func
 			| func_call  -> func_call_statement
+			| mixin -> mixin_statement
+			| "while" exprn block -> while_loop
+			| if_elif
 			| rtn
+			| decl
+			| decl_init
+			| block
 
 rtn: "return" [exprn]
 
@@ -39,7 +40,7 @@ decl_init: sym ":" type "=" exprn
 
 assign: sym "=" exprn
 
-
+?mixin: "mixin" "(" exprn ")"
 
 
 ?exprn: sum
@@ -61,6 +62,7 @@ assign: sym "=" exprn
 		| "(" exprn ")"
 		| ESCAPED_STRING -> string
 		| func_call
+		| mixin -> mixin
 
 
 sym: CNAME

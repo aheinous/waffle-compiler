@@ -10,17 +10,15 @@ def _indent(strlist, n):
 
 
 class InstrnTreeCompiler(InstrnTreeVisitor):
-    def __init__(self, vm, ctx, call_stack):
+    def __init__(self, vm, ctx, call_stack, compiler):
         super().__init__()
         self.vm = vm
         self.ctx = ctx
         self.call_stack = call_stack
+        self.compiler = compiler
         self._code = []
         self._num_indents = 0
 
-    @property
-    def code(self):
-        return self._code
 
     def _add_code(self, code):
         if isinstance(code, str):
@@ -30,7 +28,9 @@ class InstrnTreeCompiler(InstrnTreeVisitor):
 
     def compile(self, instrn_blk):
         self.visit_blk(instrn_blk)
-
+        code = self._code
+        self._code = []
+        return code
 
     def visit_Assign(self, assign):
         typed_str = self.vm.comp_pop()
@@ -165,4 +165,12 @@ class InstrnTreeCompiler(InstrnTreeVisitor):
         check_assign_okay(self.call_stack.peek().rtn_type, rtn_val.type, rtn.pos)
         self._add_code( 'return {};'.format(rtn_val.string))
 
-
+    def visit_Mixin(self, mixin):
+        self.compiler.run_exprn_tree(mixin.exprn)
+        code = self.vm.run_pop()
+        print('code:', code)
+        # self._add_code(code.value)
+        self.compiler.run_exprn_code(code.value, mixin.pos)
+        value = self.vm.run_pop()
+        print('value: ', value)
+        self.vm.comp_push(value.cpp_repr)

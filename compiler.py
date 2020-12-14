@@ -1,122 +1,146 @@
 #! /usr/bin/python3
+# from exceptions import MixinUnexpectedEOF
+from exceptions import LarkErrorWithPos
 from instruction_tree_compiler import InstrnTreeCompiler
 from instruction_tree_runner import InstrnTreeRunner
 from call_stack import CallStack
 from instruction_tree_visitor import InstrnTreeVisitor, InstrnTreePrinter
 from context import Context, ScopeTreePrinter
 from lark import Lark
-from lark.exceptions import LarkError
+from lark.exceptions import LarkError, ParseError, UnexpectedEOF, UnexpectedInput
 from virtual_machine import VirtualMachine
 from instruction_generator import InstructionGenerator
 
 from context import ScopeMaker
 
-def compile(src_fname):
-    parser = Lark.open('syntax.lark', parser='lalr', propagate_positions=True)
-    src = ''
-    with open(src_fname, 'r') as src_file:
-        src = ''.join(src_file.readlines())
-    try:
-        tree = parser.parse(src)
-    except LarkError as e:
-        print(e)
-        return
-    print(tree)
-    print(tree.pretty())
 
-    print("### Instruction Generator")
-    gen = InstructionGenerator(src_fname)
-    gen.visit(tree)
-    instrn_tree = gen.instructions
+TAB_SIZE = 4
 
-    # hifi = HiFiInstrnTreeVisitor()
-    # hifi.visit_blk(instrn_tree)
+class Compiler:
+    def __init__(self):
+        self.parser = Lark.open('syntax.lark', parser='lalr', propagate_positions=True)
+        self.exprn_parser = Lark.open('syntax.lark', parser='lalr', propagate_positions=True, start='exprn')
+        self.instruction_generator = InstructionGenerator()
+        self.scope_maker = ScopeMaker()
+        self.context = Context()
+        self.call_stack = CallStack()
+        self.virtual_machine = VirtualMachine()
+        self.tree_runner = InstrnTreeRunner(self.virtual_machine, self.context, self.call_stack, self)
+        self.tree_compiler = InstrnTreeCompiler(self.virtual_machine, self.context, self.call_stack, self)
+        self.src_fname = None
+        self.src = None
 
-    print('### Instruction Tree')
-    itp = InstrnTreePrinter()
-    itp.start(instrn_tree)
+    def _set_file(self, src_fname):
+        self.src_fname = src_fname
+        with open(src_fname, 'r') as src_file:
+            self.src = ''.join(src_file.readlines()).expandtabs(TAB_SIZE)
 
+    def run_exprn_code(self, src, pos):
+        src = src.expandtabs(TAB_SIZE)
+        try:
+            ast = self.exprn_parser.parse(src)
+        except LarkError as e:
+            raise LarkErrorWithPos(e, pos)
+        print(ast.pretty)
+        instrn_tree = self.instruction_generator.gen_instrn_tree(ast, self.src_fname)
 
-    print('### scope maker')
+        itp = InstrnTreePrinter()
+        itp.start(instrn_tree)
 
-    scopeMaker = ScopeMaker()
-    scopeMaker.start(instrn_tree)
-
-
-    print()
-    scopePrinter = ScopeTreePrinter()
-    scopePrinter.visit('root', scopeMaker.scopes[0])
-    print()
-
-    print('### ctx maker')
-
-    ctx = Context()
-    ctx.add_new_scopes(scopeMaker.scopes)
+        self.tree_runner.run(instrn_tree)
 
 
-    print('##### run')
+    def run_exprn_tree(self, tree):
+        self.tree_runner.run(tree)
 
-    call_stack = CallStack()
-
-    vm = VirtualMachine()
-    with ctx.enter_scope(instrn_tree.uid):
-        # instrn_tree.run(vm, ctx)
-        runner = InstrnTreeRunner(vm, ctx, call_stack)
-        runner.run(instrn_tree)
-        print()
-        scopePrinter = ScopeTreePrinter()
-        scopePrinter.visit('root', scopeMaker.scopes[0])
-        print()
-
-
-    print('#### compile')
-    with ctx.enter_scope(instrn_tree.uid):
-        compiler = InstrnTreeCompiler(vm, ctx, call_stack)
-        compiler.compile(instrn_tree)
-        code = compiler.code
-    #     # code = vm.compile(instrn_tree)
-    #     code = instrn_tree.compile(vm, ctx)
-        print('\n'.join(code))
-
-    print('==============================================================')
-    # sm = ScopeMgr()
-
-    # sm.cur_scope.instrns = instrn_tree
-    # for typed_name, typed_func in gen.functions:
-    #     sm.init_symbol(typed_name, typed_func, typed_func.value.pos)
-
-    # # print(gen.results.instrns)
-    # # for instrn in gen.results.instrns:
-    # #     print(instrn)
-    # vm = VirtualMachine(sm)
-
-    # print(vm)
-
-    # print('### Run')
-    # vm.run()
-    # # try:
-    # #     vm.run()
-    # # except VMRuntimeException as rte:
-    # #     print('ERROR: ' + str(rte))
-
-    # print(vm)
+    def _on_error(self, error):
+        print('\n#### ERROR')
+        try:
+            raise error
+        except UnexpectedInput as e:
+            print(e)
+            print(e.get_context(self.src))
+        except UnexpectedEOF as e:
+            print(e)
+        except LarkErrorWithPos as e:
+            print(e.lark_error)
+            print(e.pos)
+        print('####')
 
 
-    # print('### compile')
-    # code = '\n'.join(vm.compile())
-    # print(code)
-    # # try:
-    # #     code = '\n'.join(vm.compile())
-    # #     print(code)
-    # # except VMRuntimeException as rte:
-    # #     print('ERROR: ' + str(rte))
 
-    # print(vm)
+    def _run_file(self):
+
+        ast = self.parser.parse(self.src)
+
+
+        print(ast.pretty())
+        instrn_tree = self.instruction_generator.gen_instrn_tree(ast, self.src_fname)
+
+        itp = InstrnTreePrinter()
+        itp.start(instrn_tree)
+
+        scopes = self.scope_maker.make_scopes(instrn_tree)
+        self.context.add_new_scopes(scopes)
+
+        scope_printer = ScopeTreePrinter()
+        scope_printer.visit('root', scopes[0])
+
+        with self.context.enter_scope(instrn_tree.uid):
+            self.tree_runner.run(instrn_tree)
+            scope_printer.visit('root', scopes[0])
+
+    def run_file(self, fname):
+        self._set_file(fname)
+        try:
+            self._run_file()
+        except LarkError as e:
+            self._on_error(e)
+
+
+    def _compile_file(self):
+        ast = self.parser.parse(self.src)
+
+        print(ast.pretty())
+        instrn_tree = self.instruction_generator.gen_instrn_tree(ast, self.src_fname)
+
+        itp = InstrnTreePrinter()
+        itp.start(instrn_tree)
+
+        scopes = self.scope_maker.make_scopes(instrn_tree)
+        self.context.add_new_scopes(scopes)
+
+        scope_printer = ScopeTreePrinter()
+        scope_printer.visit('root', scopes[0])
+
+        with self.context.enter_scope(instrn_tree.uid):
+            code = self.tree_compiler.compile(instrn_tree)
+            print('\n'.join(code))
+
+
+
+    def compile_file(self, fname):
+        self._set_file(fname)
+
+        try:
+            self._compile_file()
+        except LarkError as e:
+            self._on_error(e)
 
 
 def main():
-    compile('complete.lang')
-    #compile('test.lang')
+    # compiler = Compiler()
+    # compiler.run_file('mixin.lang')
+    compiler = Compiler()
+    compiler.run_file('complete.lang')
+
+    print('=============================================================='*2)
+
+    # compiler = Compiler()
+    # compiler.compile_file('mixin.lang')
+    compiler = Compiler()
+    compiler.compile_file('complete.lang')
+
 
 if __name__ == '__main__':
     main()

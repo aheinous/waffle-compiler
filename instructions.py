@@ -107,8 +107,6 @@ class Pop(Instrn):
 class IfElse(Instrn):
     def __init__(self, condBlk, ifBlk, elseBlk, pos):
         super().__init__(pos)
-        # ifBlk.uid
-        # elseBlk.uid
         self.condBlk = condBlk
         self._add_child_scope('if_blk', ifBlk)
         self._add_child_scope('else_blk', elseBlk)
@@ -127,6 +125,10 @@ class WhileLoop(Instrn):
         self._add_child_scope('loop', loop)
 
 
+class Mixin(Instrn):
+    def __init__(self, exprn, pos):
+        super().__init__(pos)
+        self.exprn = exprn
 
 
 
