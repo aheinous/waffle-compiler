@@ -1,7 +1,7 @@
 from instruction_block import Block
 from lark.visitors import Interpreter
 from position import Position
-from instructions import Func, Assign, InitFunc, Mixin, Push, Pushi, Pop, Decl, IfElse, WhileLoop, Rtn, Call, BinOp, UnaryOp
+from instructions import Func, Assign, InitFunc, Mixin, MixinStatements, Push, Pushi, Pop, Decl, IfElse, WhileLoop, Rtn, Call, BinOp, UnaryOp
 from type_system import make_type, make_value, TypedValue, TypedSym, Add, Sub, Mul, Div, Neg, Int, Float, String
 
 def _get_sym(sym):
@@ -228,7 +228,13 @@ class InstructionGenerator(Interpreter):
         self._instrn_recorder.add_instrn(Rtn(exprn, pos))
 
     @add_position_arg
-    def mixin(self, tree, pos):
+    def mixin_exprn(self, tree, pos):
         exprn = self._visit_get_instrs(tree.children[0])
         self._instrn_recorder.add_instrn(Mixin(exprn, pos))
+
+    @add_position_arg
+    def mixin_statement(self, tree, pos):
+        statements = self._visit_get_instrs(tree.children[0])
+        self._instrn_recorder.add_instrn(MixinStatements(statements, pos))
+
 

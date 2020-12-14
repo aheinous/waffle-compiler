@@ -1,7 +1,7 @@
 from exceptions import RtnException
 from type_system import TypedStr, TypedValue, Void, check_assign_okay, op_cpp_repr, op_res, op_res_type, type_cpp_repr
 from context import TYPE, VALUE
-from instruction_tree_visitor import InstrnTreeVisitor
+from instruction_tree_visitor import InstrnTreePrinter, InstrnTreeVisitor
 
 def _indent(strlist, n):
     for i in range(len(strlist)):
@@ -26,7 +26,7 @@ class InstrnTreeCompiler(InstrnTreeVisitor):
         self._code += _indent(code, self._num_indents)
 
 
-    def compile(self, instrn_blk):
+    def compile_tree(self, instrn_blk):
         self.visit_blk(instrn_blk)
         code = self._code
         self._code = []
@@ -87,21 +87,21 @@ class InstrnTreeCompiler(InstrnTreeVisitor):
 
 
     def visit_IfElse(self, ifelse):
-        self.compile(ifelse.condBlk)
+        self.visit_blk(ifelse.condBlk)
 
         condition = self.vm.comp_pop()
         self._add_code('if(' + condition.string + '){')
 
         with self.ctx.enter_scope(ifelse.ifBlk.uid):
             self._num_indents += 1
-            self.compile(ifelse.ifBlk)
+            self.visit_blk(ifelse.ifBlk)
             self._num_indents -= 1
 
         if ifelse.elseBlk:
             self._add_code('} else {')
             with self.ctx.enter_scope(ifelse.elseBlk.uid):
                 self._num_indents += 1
-                self.compile(ifelse.elseBlk)
+                self.visit_blk(ifelse.elseBlk)
                 self._num_indents -= 1
 
         self._add_code('}')
@@ -112,12 +112,12 @@ class InstrnTreeCompiler(InstrnTreeVisitor):
 
         self._add_code('while(1){')
         self._num_indents += 1
-        self.compile(whileloop.condBlk)
+        self.visit_blk(whileloop.condBlk)
         self._add_code('if(!(' + str(self.vm.comp_pop().string) +')){')
         self._add_code(_indent(['break;'], 1))
         self._add_code('}')
         with self.ctx.enter_scope(whileloop.loop.uid):
-            self.compile(whileloop.loop)
+            self.visit_blk(whileloop.loop)
         self._num_indents -= 1
         self._add_code('}')
 
@@ -139,7 +139,7 @@ class InstrnTreeCompiler(InstrnTreeVisitor):
                                                 func.typed_sym.sym,
                                                 arg_list))
             self._num_indents += 1
-            self.compile(func.instrns)
+            self.visit_blk(func.instrns)
             self._num_indents -= 1
             self._add_code('}')
 
@@ -149,7 +149,7 @@ class InstrnTreeCompiler(InstrnTreeVisitor):
     def visit_Call(self, call):
         arg_code = ''
         for arg_exprn in call.arg_exprns:
-            self.compile(arg_exprn)
+            self.visit_blk(arg_exprn)
             arg_code += (', '  if arg_code else '') + self.vm.comp_pop().string
 
         call_code = '{}({})'.format(call.func_sym, arg_code)
@@ -160,17 +160,20 @@ class InstrnTreeCompiler(InstrnTreeVisitor):
     def visit_Rtn(self, rtn):
         rtn_val = TypedStr('', Void())
         if rtn.exprn:
-            self.compile(rtn.exprn)
+            self.visit_blk(rtn.exprn)
             rtn_val = self.vm.comp_pop()
         check_assign_okay(self.call_stack.peek().rtn_type, rtn_val.type, rtn.pos)
         self._add_code( 'return {};'.format(rtn_val.string))
 
     def visit_Mixin(self, mixin):
-        self.compiler.run_exprn_tree(mixin.exprn)
+        self.compiler.run_exprn_tree(mixin.exprn, mixin.pos)
         code = self.vm.run_pop()
-        print('code:', code)
-        # self._add_code(code.value)
-        self.compiler.run_exprn_code(code.value, mixin.pos)
-        value = self.vm.run_pop()
-        print('value: ', value)
-        self.vm.comp_push(value.cpp_repr)
+        sub_tree = self.compiler.compile_exprn_code(code.value, mixin.pos)
+        self.visit_blk(sub_tree)
+
+    def visit_MixinStatements(self, mixin):
+        self.compiler.run_exprn_tree(mixin.statements, mixin.pos)
+        s = self.vm.run_pop()
+        sub_tree = self.compiler.compile_statements(s.value, mixin.pos)
+        InstrnTreePrinter().start(sub_tree)
+        self.visit_blk(sub_tree)

@@ -43,6 +43,11 @@ class _Type:
     def repr(self):
         return type_cpp_repr(self)
 
+    def __str__(self):
+        return str(self.__class__).split("'")[1].split('.')[-1]
+
+
+
 
 class Void(_Type): pass
 
@@ -56,6 +61,10 @@ class _Op:
     @property
     def repr(self):
         return op_cpp_repr(self)
+
+    def __str__(self):
+        return str(self.__class__).split("'")[1].split('.')[-1]
+
 
 
 class _BinOp(_Op): pass

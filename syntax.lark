@@ -62,7 +62,7 @@ assign: sym "=" exprn
 		| "(" exprn ")"
 		| ESCAPED_STRING -> string
 		| func_call
-		| mixin -> mixin
+		| mixin -> mixin_exprn
 
 
 sym: CNAME

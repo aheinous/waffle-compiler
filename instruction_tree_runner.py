@@ -99,5 +99,9 @@ class InstrnTreeRunner(InstrnTreeVisitor):
     def visit_Mixin(self, mixin):
         self.run(mixin.exprn)
         s = self.vm.run_pop()
-        print(s)
         self.compiler.run_exprn_code(s.value, mixin.pos)
+
+    def visit_MixinStatements(self, mixin):
+        self.run(mixin.statements)
+        s = self.vm.run_pop()
+        self.compiler.run_statement_code(s.value, mixin.pos)

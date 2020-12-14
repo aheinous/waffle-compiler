@@ -84,13 +84,13 @@ class ScopeTreeVisitor:
 
     def visit_children(self, scope):
         for child in scope.children:
-            self.visit(child.name, child)
+            self.visit(child)
 
 class ScopeTreePrinter(ScopeTreeVisitor):
     def __init__(self):
         self.indent = 0
 
-    def visit(self, name, scope):
+    def visit(self, scope):
         indent_str = self.indent*4*' '
         print('{}name: {}, uid: {}'.format(indent_str, scope.name, scope.uid))
         print('{}{}'.format(indent_str,scope.symbol_values))
@@ -119,8 +119,13 @@ class ScopeMaker(InstrnTreeVisitor):
     def _pop(self):
         self._stack.pop()
 
-    def make_scopes(self, instrn_tree):
-        self.start(instrn_tree)
+    def make_scopes(self, instrn_tree, start_scope=None):
+        if start_scope:
+            self._stack.append(start_scope)
+            self.visit_blk(instrn_tree)
+        else:
+            self.start(instrn_tree)
+
         scopes = self._scopes
         self._scopes = []
         return scopes
@@ -150,6 +155,9 @@ class Context:
         self._scope_history = []
         self._root = None
 
+    @property
+    def cur_scope(self):
+        return self._cur_scope
 
     def add_new_scopes(self, scope_list):
         for scope in scope_list:

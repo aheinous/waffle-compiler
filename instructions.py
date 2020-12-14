@@ -130,5 +130,9 @@ class Mixin(Instrn):
         super().__init__(pos)
         self.exprn = exprn
 
+class MixinStatements(Instrn):
+    def __init__(self, statements, pos):
+        super().__init__(pos)
+        self.statements = statements
 
 
