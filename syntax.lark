@@ -43,7 +43,24 @@ assign: sym "=" exprn
 ?mixin: "mixin" "(" exprn ")"
 
 
-?exprn: sum
+?exprn: or_exprn
+
+?or_exprn: and_exprn
+	| or_exprn  "or" and_exprn
+
+?and_exprn: equal_test
+	| and_exprn  "and" equal_test
+
+?equal_test: gt_lt_test
+	| equal_test "==" gt_lt_test -> eq
+	| equal_test "!=" gt_lt_test -> not_eq
+
+?gt_lt_test: sum
+	| gt_lt_test ">" sum ->  gt
+	| gt_lt_test ">=" sum -> gteq
+	| gt_lt_test "<" sum ->  lt
+	| gt_lt_test "<=" sum -> lteq
+
 ?sum: product
 	| sum "+" product -> add
 	| sum "-" product -> sub

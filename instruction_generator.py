@@ -2,7 +2,7 @@ from instruction_block import Block
 from lark.visitors import Interpreter
 from position import Position
 from instructions import Func, Assign, InitFunc, Mixin, MixinStatements, Push, Pushi, Pop, Decl, IfElse, WhileLoop, Rtn, Call, BinOp, UnaryOp
-from type_system import make_type, make_value, TypedValue, TypedSym, Add, Sub, Mul, Div, Neg, Int, Float, String
+from type_system import And, Eq, Gt, GtEq, Lt, LtEq, NotEq, Or, make_type, make_value, TypedValue, TypedSym, Add, Sub, Mul, Div, Neg, Int, Float, String
 
 def _get_sym(sym):
     assert sym.data == 'sym'
@@ -60,10 +60,6 @@ class InstructionGenerator(Interpreter):
         self._instrn_recorder.reset()
         return tree
 
-    # @property
-    # def instructions(self):
-    #     return self._instrn_recorder._instrn_stack[0]
-
     @property
     def functions(self):
         return self._funcs
@@ -105,7 +101,38 @@ class InstructionGenerator(Interpreter):
         self.visit_children(tree)
         self._instrn_recorder.add_instrn(UnaryOp(Neg(), pos))
 
-
+    @add_position_arg
+    def eq(self, tree, pos):
+        self.visit_children(tree)
+        self._instrn_recorder.add_instrn(BinOp(Eq(), pos))
+    @add_position_arg
+    def not_eq(self, tree, pos):
+        self.visit_children(tree)
+        self._instrn_recorder.add_instrn(BinOp(NotEq(), pos))
+    @add_position_arg
+    def gt(self, tree, pos):
+        self.visit_children(tree)
+        self._instrn_recorder.add_instrn(BinOp(Gt(), pos))
+    @add_position_arg
+    def gteq(self, tree, pos):
+        self.visit_children(tree)
+        self._instrn_recorder.add_instrn(BinOp(GtEq(), pos))
+    @add_position_arg
+    def lt(self, tree, pos):
+        self.visit_children(tree)
+        self._instrn_recorder.add_instrn(BinOp(Lt(), pos))
+    @add_position_arg
+    def lteq(self, tree, pos):
+        self.visit_children(tree)
+        self._instrn_recorder.add_instrn(BinOp(LtEq(), pos))
+    @add_position_arg
+    def and_exprn(self, tree, pos):
+        self.visit_children(tree)
+        self._instrn_recorder.add_instrn(BinOp(And(), pos))
+    @add_position_arg
+    def or_exprn(self, tree, pos):
+        self.visit_children(tree)
+        self._instrn_recorder.add_instrn(BinOp(Or(), pos))
 
     @add_position_arg
     def assign(self, tree, pos):

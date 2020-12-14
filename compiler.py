@@ -18,10 +18,15 @@ TAB_SIZE = 4
 
 class Compiler:
     def __init__(self):
+        self._reset()
         self.parser = Lark.open('syntax.lark', parser='lalr', propagate_positions=True)
         self.exprn_parser = Lark.open('syntax.lark', parser='lalr', propagate_positions=True, start='exprn')
         self.instruction_generator = InstructionGenerator()
         self.scope_maker = ScopeMaker()
+
+
+
+    def _reset(self):
         self.context = Context()
         self.call_stack = CallStack()
         self.virtual_machine = VirtualMachine()
@@ -31,6 +36,7 @@ class Compiler:
         self.src = None
 
     def _set_file(self, src_fname):
+        self._reset()
         self.src_fname = src_fname
         with open(src_fname, 'r') as src_file:
             self.src = ''.join(src_file.readlines()).expandtabs(TAB_SIZE)
@@ -179,16 +185,17 @@ class Compiler:
 
 
 def main():
-    # compiler = Compiler()
+    compiler = Compiler()
     # compiler.run_file('mixin.lang')
+    compiler.run_file('operators.lang')
     # compiler = Compiler()
     # compiler.run_file('complete.lang')
 
     print('=============================================================='*2)
 
-    compiler = Compiler()
-    compiler.compile_file('mixin.lang')
-    # compiler = Compiler()
+    # # compiler = Compiler()
+    # compiler.compile_file('mixin.lang')
+    # # compiler = Compiler()
     # compiler.compile_file('complete.lang')
 
 

@@ -72,6 +72,17 @@ class Add(_BinOp): pass
 class Sub(_BinOp): pass
 class Mul(_BinOp): pass
 class Div(_BinOp): pass
+
+class Eq(_BinOp): pass
+class NotEq(_BinOp): pass
+class Gt(_BinOp): pass
+class GtEq(_BinOp): pass
+class Lt(_BinOp): pass
+class LtEq(_BinOp): pass
+
+class And(_BinOp): pass
+class Or(_BinOp): pass
+
 class _UnaryOp(_Op): pass
 class Neg(_UnaryOp): pass
 
@@ -184,11 +195,17 @@ def type_cpp_repr(type_) -> str:
 
 def op_cpp_repr(op) -> str:
     return match(op,
-                Add, '+',
-                Sub, '-',
-                Mul, '*',
-                Div, '/',
-                Neg, '-'
+                Add,  '+',
+                Sub,  '-',
+                Mul,  '*',
+                Div,  '/',
+                Neg,  '-',
+                Eq,   '=',
+                NotEq,'!=',
+                Gt,   '>',
+                GtEq, '>=',
+                Lt,   '<',
+                LtEq, '<=',
                 )
 
 def check_assign_okay(l_type, r_type, pos):
@@ -254,23 +271,23 @@ def op_res_type(op, *args):
         return _unary_op_res_type(op, *args)
     l_type, r_type, pos = args
 
+    ARITHMETIC = Union[Add, Sub, Mul, Div]
+    COMPARE = Union[Eq, NotEq, Gt, GtEq, Lt, LtEq]
+    BOOLEAN = Union[And, Or]
 
-    res = match ((l_type, r_type),
-            (Int, Int),         lambda a,b: match(op,   Union[Add, Sub, Mul, Div], Int(),
-                                                    _, None),
-            (Float, Float),     lambda a,b: match(op, Union[Add, Sub, Mul, Div], Float(),
-                                                    _, None),
-            (Float, Int),       lambda a,b: match(op,   Union[Add, Sub, Mul, Div], Float(),
-                                                    _, None),
-            (Int, Float),       lambda a,b: match(op,   Union[Add, Sub, Mul, Div], Float(),
-                                                    _, None),
-            (String, String),   lambda a,b: match(op, Add, String(),
-                                                    _, None),
-            (_,_), None
+    res = match ((op, l_type, r_type),
+            (ARITHMETIC, Int, Int),     Int(),
+            (ARITHMETIC, _Num, _Num),   Float(),
+            (COMPARE, Int, Int),        Int(),
+            (BOOLEAN, _Num, _Num),      Int(),
+            (Add, String, String),      String(),
+            (_,_,_), None
     )
     if res is None:
         raise TypeMismatchException(l_type, r_type, pos)
     return res
+
+
 
 def _unary_op_res(op, typed_value, pos):
     res_type = _unary_op_res_type(op, typed_value.type, pos)
@@ -286,10 +303,18 @@ def op_res(*args) -> TypedValue:
     l_value, r_value = l_typed_value.value, r_typed_value.value
     res_type = op_res_type(op, l_type, r_type, pos)
     res = match (op,
-                 Add, lambda _: l_value + r_value,
-                 Sub, lambda _: l_value - r_value,
-                 Mul, lambda _: l_value * r_value,
-                 Div, lambda _: l_value / r_value
+                 Add,   lambda _: l_value + r_value,
+                 Sub,   lambda _: l_value - r_value,
+                 Mul,   lambda _: l_value * r_value,
+                 Div,   lambda _: l_value / r_value,
+                 Eq,    lambda _: l_value == r_value,
+                 NotEq, lambda _: l_value != r_value,
+                 Gt,    lambda _: l_value > r_value,
+                 GtEq,  lambda _: l_value >= r_value,
+                 Lt,    lambda _: l_value < r_value,
+                 LtEq,  lambda _: l_value <= r_value,
+                 And,   lambda _: l_value and r_value,
+                 Or,    lambda _: l_value or r_value,
     )
     res = match(res_type,   Int, lambda _: MutableInt32(res//1),
                             Float, lambda  _: float(res),
