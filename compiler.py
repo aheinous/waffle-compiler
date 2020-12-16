@@ -11,7 +11,7 @@ from lark.exceptions import LarkError, ParseError, UnexpectedEOF, UnexpectedInpu
 from virtual_machine import VirtualMachine
 from instruction_generator import InstructionGenerator
 
-from context import ScopeMaker
+from scope_maker import ScopeMaker
 
 
 TAB_SIZE = 4
