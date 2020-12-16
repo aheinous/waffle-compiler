@@ -5,7 +5,8 @@ from position import Position
 from instructions import (  ClassDecl, Func, Assign, InitFunc, Mixin, MixinStatements,
                             ObjectInit, Push, Pushi, Pop, Decl, IfElse, WhileLoop, Rtn,
                             Call, BinOp, UnaryOp )
-from type_system import And, Eq, Gt, GtEq, Lt, LtEq, NotEq, Or,  Add, Sub, Mul, Div, Neg, Int, Float, String
+from type_system import (   And, Eq, Gt, GtEq, Lt, LtEq, NotEq, Or,  Add, Sub, Mul,
+                            Div, Neg, Int, Float, String )
 
 def _get_sym(sym):
     assert sym.data == 'sym'

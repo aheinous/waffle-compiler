@@ -1,8 +1,5 @@
 from position import Position
 from instruction_block import Block
-from call_stack import CallStack
-from context import TYPE, VALUE
-from exceptions import RtnException
 from typed_data import RValue, TSym
 
 

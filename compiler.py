@@ -1,19 +1,18 @@
 #! /usr/bin/python3
-# from exceptions import MixinUnexpectedEOF
 from exceptions import LarkErrorWithPos
 from instruction_tree_compiler import InstrnTreeCompiler
 from instruction_tree_runner import InstrnTreeRunner
 from call_stack import CallStack
-from instruction_tree_visitor import InstrnTreeVisitor, InstrnTreePrinter
+from instruction_tree_visitor import  InstrnTreePrinter
 from context import Context, ScopeTreePrinter
 from lark import Lark
-from lark.exceptions import LarkError, ParseError, UnexpectedEOF, UnexpectedInput
+from lark.exceptions import LarkError, UnexpectedEOF, UnexpectedInput
 from virtual_machine import VirtualMachine
 from instruction_generator import InstructionGenerator
 
 from scope_maker import ScopeMaker
 
-
+# TODO cmd line arg, propagate thru program..
 TAB_SIZE = 4
 
 class Compiler:

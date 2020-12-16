@@ -1,5 +1,3 @@
-
-
 from typed_data import LValue, TFrag, RValue
 
 
@@ -8,16 +6,12 @@ class VirtualMachine:
         self._run_stack = []
         self._comp_stack = []
 
-
-
     def comp_push(self, typed_str):
         assert isinstance(typed_str, TFrag)
         self._comp_stack.append(typed_str)
 
     def comp_pop(self):
         return self._comp_stack.pop()
-
-
 
     def run_push(self, data):
         assert isinstance(data, (RValue,LValue))
@@ -28,9 +22,6 @@ class VirtualMachine:
 
     def run_peek(self):
         return self._run_stack[-1]
-
-
-
 
     def __str__(self):
         s =  'VM:\n\tRunStack' + str(self._run_stack) \

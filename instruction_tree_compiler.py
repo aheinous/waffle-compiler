@@ -1,6 +1,5 @@
 from type_system import Void
-from exceptions import RtnException
-from typed_data import TFrag, RValue
+from typed_data import TFrag
 from context import TYPE, VALUE
 from instruction_tree_visitor import InstrnTreePrinter, InstrnTreeVisitor
 
