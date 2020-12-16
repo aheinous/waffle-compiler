@@ -19,7 +19,14 @@ class InstrnTreeCompiler(InstrnTreeVisitor):
         self.compiler = compiler
         self._code = []
         self._num_indents = 0
+        self._tmp_counters = {}
 
+    def _next_tmp(self):
+        scope_uid = self.ctx.cur_scope_uid()
+        if scope_uid not in self._tmp_counters:
+            self._tmp_counters[scope_uid] = -1
+        self._tmp_counters[scope_uid] += 1
+        return self._tmp_counters[scope_uid]
 
     def _add_code(self, code):
         if isinstance(code, str):
@@ -65,7 +72,7 @@ class InstrnTreeCompiler(InstrnTreeVisitor):
         # res_type = op_res_type(binop.op, left.type, right.type, binop.pos)
         res_type = left.opResType(binop.op, right, binop.pos)
 
-        tmp_name = 'tmp_{}'.format(self.ctx.next_tmp())
+        tmp_name = 'tmp_{}'.format(self._next_tmp())
         self.vm.comp_push(TFrag(tmp_name, res_type))
 
         code = '{} {} = {} {} {};'.format(  res_type.repr,

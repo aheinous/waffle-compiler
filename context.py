@@ -199,7 +199,7 @@ class Context:
         self._cur_scope = self._scopes_by_uid[uid]
         return GentleScopeEntry(self)
 
-    def cur_scope_uid(self):
+    def cur_scope_uid(self): # does not include instance_uid
         return self._cur_scope.uid
 
     def _exit_scope(self):
@@ -265,16 +265,6 @@ class Context:
         with self._gently_enter_scope(scope_uid):
             return self.read(sym, field, pos)
 
-    # TODO: get rid of this ??
-    def next_tmp(self):
-        self._cur_scope.tmp_cnt += 1
-        return self._cur_scope.tmp_cnt - 1
-
-    def __contains__(self, sym):
-        for scope in self._scope_hierarchy():
-            if sym in scope:
-                return True
-        return False
 
 if __name__ == '__main__':
     unittest.main()
