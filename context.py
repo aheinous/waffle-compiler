@@ -221,7 +221,7 @@ class Context:
         type_ = typed_sym.type
         if sym in self._cur_scope \
             and self._cur_scope.has_field(sym,VALUE):
-            raise SymbolReassignment(pos)
+            raise SymbolReassignment(sym, pos)
         self._cur_scope.insert(sym, TYPE, type_)
 
 
@@ -237,8 +237,6 @@ class Context:
     def assign_value(self, sym, value, pos):
         for scope in self._scope_hierarchy():
             if sym in scope:
-                # TODO verify this is type_checked elsewhere
-                # new_value = type_sys_assign(scope.read(sym, TYPE), t_value, pos)
                 scope.insert(sym, VALUE, value)
                 return
         raise SymbolNotFound(sym, pos)
@@ -247,8 +245,6 @@ class Context:
         with self._gently_enter_scope(uid):
             for scope in self._scope_hierarchy():
                 if sym in scope:
-                    # TODO verify this is type_checked elsewhere
-                    # new_value = type_sys_assign(scope.read(sym, TYPE), t_value, pos)
                     scope.insert(sym, VALUE, value)
                     return
             raise SymbolNotFound(sym, pos)

@@ -90,6 +90,8 @@ class LValue(_Typed):
 
     def assign(self, t_value, ctx, pos):
         rvalue = t_value.rvalue(ctx, pos)
+        newValue_untyped = type_sys.assign(self.type, rvalue.type, rvalue.value(), pos)
+        rvalue = RValue(newValue_untyped, self.type)
         ctx.assign_value_at(self.scope_uid, self.sym, rvalue, pos)
 
     def rvalue(self, ctx, pos):

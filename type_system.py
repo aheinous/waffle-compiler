@@ -179,16 +179,7 @@ def check_assign_okay(l_type, r_type, pos):
 
 
 def assign(l_type, r_type, r_value, pos):
-
     check_assign_okay(l_type, r_type, pos)
-
-
-
-    # # TODO
-    # # hack for 'if instanceof(value, Func)'
-    # if 'instructions.Func' in str(r_value.__class__):
-    #     return TValue(r_value, l_type)
-
 
     return match( (l_type, r_type),
             (Int, _Num),    lambda a,b: r_value // 1,
@@ -220,7 +211,8 @@ def op_valid(op, l_type, r_type=None):
 
 def unary_op_res_type(op, type_, pos):
     if not _unary_op_valid(op, type_):
-        raise IllegalOperation(pos)
+
+        raise IllegalOperation('unary ' + op_cpp_repr(op) ,pos)
     return match(op,
             Neg, lambda _: type_)
 
