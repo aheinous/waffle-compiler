@@ -11,7 +11,9 @@ class LarkErrorWithPos(LarkError):
     def __init__(self, lark_error, pos):
         self.lark_error = lark_error
         self.pos = pos
+# TODO pass symbol name, type etc.
 
+# TODO print file context  properl;y
 
 
 
@@ -34,12 +36,12 @@ class SymbolReassignment(VMRuntimeException):
         super().__init__("Symbol reassignment", pos)
 
 class SymbolNotFound(VMRuntimeException):
-    def __init__(self,  pos):
-        super().__init__("Assignment to undeclared variable", pos)
+    def __init__(self,  sym, pos):
+        super().__init__('Symbol not found: "' + sym +'"', pos)
 
 class UnrecognizedType(VMRuntimeException):
-    def __init__(self,  pos):
-        super().__init__("Unrecognized type", pos)
+    def __init__(self, str_rep, pos):
+        super().__init__("Unrecognized type: " + str_rep, pos)
 
 class IllegalOperation(VMRuntimeException):
     def __init__(self,  pos):

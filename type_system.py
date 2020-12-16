@@ -37,33 +37,48 @@ def _encode_escapes(s):
 
 
 
+class _TypeSysElem:
+    def __str__(self):
+        return str(self.__class__).split("'")[1].split('.')[-1]
 
-class _Type:
+    def __repr__(self):
+        return str(self)
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__
+
+    def __hash__(self):
+        return hash( (self.__class__, 'I am an object') )
+
+
+class Type(_TypeSysElem):
     @property
     def repr(self):
         return type_cpp_repr(self)
 
-    def __str__(self):
-        return str(self.__class__).split("'")[1].split('.')[-1]
 
+class Void(Type): pass
 
-
-
-class Void(_Type): pass
-
-class _Num(_Type): pass
+class _Num(Type): pass
 class Int(_Num): pass
 class Float(_Num): pass
-class String(_Type): pass
+class String(Type): pass
+class Object(Type):
+    def __init__(self, uid):
+        self.uid = uid
+
+    def __hash__(self):
+        return hash(self.__class__, self.uid)
 
 
-class _Op:
+
+
+class _Op(_TypeSysElem):
     @property
     def repr(self):
         return op_cpp_repr(self)
 
-    def __str__(self):
-        return str(self.__class__).split("'")[1].split('.')[-1]
+
 
 
 
@@ -87,103 +102,46 @@ class _UnaryOp(_Op): pass
 class Neg(_UnaryOp): pass
 
 
-class _Typed:
-    @property
-    def type_repr(self):
-        return type_cpp_repr(self.type)
-
-class TypedValue(_Typed):
-    def __init__(self, value, type):
-        self.type = type
-        self.value = value
-        assert isinstance(self.type, _Type)
-        assert not isinstance(self.value, TypedValue)
-
-    def __repr__(self):
-        s = '(TypedValue {} {})'.format(self.value, self.type)
-        return s
-
-    @property
-    def cpp_repr(self):
-        return cpp_repr(self)
 
 
-class TypedSym(_Typed):
-    def __init__(self, sym, type):
-        self.sym = sym
-        self.type = type
-        assert isinstance(self.type, _Type)
-        assert isinstance(self.sym, str)
+# TODO make this a class
 
-    def __repr__(self):
-        s = '(TypedSym {} {})'.format(self.sym, self.type)
-        return s
+types_ = {
+    'int': Int(),
+    'float': Float(),
+    'string': String(),
+    'void': Void(),
+}
 
-    @property
-    def string(self):
-        return self.sym
-
-
-
-class TypedStr(_Typed):
-    def __init__(self, string, type):
-        self.string = string
-        self.type = type
-        assert isinstance(self.type, _Type)
-        assert isinstance(self.string, str)
-
-    def __repr__(self):
-        s = '(TypedStr {} {})'.format(self.string, self.type)
-        return s
+def reg_new_type(sym, uid) -> Object:
+    assert sym not in types_
+    type_ = Object(uid)
+    types_[sym] = type_
+    return type_
 
 
-
-class TypedSymValue(TypedValue):
-    def __init__(self, *args):
-        if len(args) == 2:
-            self.sym = args[0]
-            self.value = args[1].value
-            self.value = args[1].type
-        elif len(args) == 3:
-            self.sym = args[0]
-            self.value = args[1]
-            self. type = args[2]
-        assert isinstance(self.type, _Type)
-
-    @property
-    def typed_value(self):
-        return TypedValue(self.value, self.type)
-
-
-def make_value(str_rep, type_, pos) -> TypedValue :
+def make_value(str_rep, type_, pos):
     value = match(type_,
         Int, lambda _ : MutableInt32(int(str_rep)),
         Float, lambda _: float(str_rep),
         String, lambda _: _decode_escapes(str_rep[1:-1])
     )
-    return TypedValue(value, type_)
+    return value
 
-def make_type(str_rep, pos) -> _Type :
-    type_ = match( str_rep,
-                    'int', Int(),
-                    'float', Float(),
-                    'string', String(),
-                    'void', Void(),
-                    _, None
-    )
+def make_type(str_rep, pos) -> Type :
+    type_ = types_.get(str_rep, None)
     if type_ is None:
-        raise UnrecognizedType(pos)
+        raise UnrecognizedType(str_rep, pos)
     return type_
 
 
 
-def cpp_repr(typed_value) -> TypedStr :
-    v = typed_value.value
-    s = match(typed_value.type,
-        _Num, lambda _ : str(v),
-        String, lambda _:'"' + _encode_escapes(v) + '"'
+def value_cpp_repr(value, type_) :
+    s = match(type_,
+        _Num, lambda _ : str(value),
+        String, lambda _:'"' + _encode_escapes(value) + '"'
     )
-    return TypedStr(s, typed_value.type)
+    return s
 
 def type_cpp_repr(type_) -> str:
     return match(type_,
@@ -209,34 +167,35 @@ def op_cpp_repr(op) -> str:
                 )
 
 def check_assign_okay(l_type, r_type, pos):
-    assert isinstance(l_type, _Type)
-    assert isinstance(r_type, _Type)
+    assert isinstance(l_type, Type)
+    assert isinstance(r_type, Type)
     if not match( (l_type, r_type),
-            (_Num, _Num), True,
-            (String, String), True,
-            (Void, Void), True,
-            _, False):
+                        (_Num, _Num),       True,
+                        (String, String),   True,
+                        (Void, Void),       True,
+                        (_,_),              lambda l_type, r_type: l_type == r_type):
         raise TypeMismatchException(l_type, r_type, pos)
 
 
 
-def assign(l_type, right, pos):
-    r_type = right.type
+def assign(l_type, r_type, r_value, pos):
+
     check_assign_okay(l_type, r_type, pos)
-    value = right.value
 
 
-    # TODO
-    # hack for 'if instanceof(value, Func)'
-    if 'instructions.Func' in str(value.__class__):
-        return TypedValue(value, l_type)
+
+    # # TODO
+    # # hack for 'if instanceof(value, Func)'
+    # if 'instructions.Func' in str(r_value.__class__):
+    #     return TValue(r_value, l_type)
 
 
-    return TypedValue(match( (l_type, r_type),
-            (Int, _Num), lambda a,b: value // 1,
-            (Float, _Num), lambda a,b: float(value),
-            (String, String), lambda a,b: value
-    ), l_type)
+    return match( (l_type, r_type),
+            (Int, _Num),    lambda a,b: r_value // 1,
+            (Float, _Num),  lambda a,b: float(r_value),
+            (_, _),         lambda a,b: r_value
+    )
+
 
 
 def _unary_op_valid(op, type_):
@@ -259,18 +218,14 @@ def op_valid(op, l_type, r_type=None):
         _, False
     )
 
-def _unary_op_res_type(op, type_, pos):
+def unary_op_res_type(op, type_, pos):
     if not _unary_op_valid(op, type_):
         raise IllegalOperation(pos)
     return match(op,
             Neg, lambda _: type_)
 
 
-def op_res_type(op, *args):
-    if len(args) == 2:
-        return _unary_op_res_type(op, *args)
-    l_type, r_type, pos = args
-
+def op_res_type(op, l_type, r_type, pos):
     ARITHMETIC = Union[Add, Sub, Mul, Div]
     COMPARE = Union[Eq, NotEq, Gt, GtEq, Lt, LtEq]
     BOOLEAN = Union[And, Or]
@@ -289,18 +244,14 @@ def op_res_type(op, *args):
 
 
 
-def _unary_op_res(op, typed_value, pos):
-    res_type = _unary_op_res_type(op, typed_value.type, pos)
+def unary_op_res(op, value, type_, pos):
     res = match (op,
-                Neg, lambda _: -typed_value.value)
-    return TypedValue(res, res_type)
+                    Neg, lambda _: -value)
+    return res
 
-def op_res(*args) -> TypedValue:
-    if len(args) == 3:
-        return _unary_op_res(*args)
-    op, l_typed_value, r_typed_value, pos = args
-    l_type,  r_type  = l_typed_value.type,  r_typed_value.type
-    l_value, r_value = l_typed_value.value, r_typed_value.value
+def op_res(op, l_value, l_type, r_value, r_type, pos):
+
+
     res_type = op_res_type(op, l_type, r_type, pos)
     res = match (op,
                  Add,   lambda _: l_value + r_value,
@@ -320,31 +271,31 @@ def op_res(*args) -> TypedValue:
                             Float, lambda  _: float(res),
                             _, lambda _ : res
                             )
-    return TypedValue(res, res_type)
+    return res
 
-def main():
-    print(make_value('123', Int(), NoOne))
-    print(make_value('"Hello\\n"', String(), NoOne))
+# def main():
+#     print(make_value('123', Int(), NoOne))
+#     print(make_value('"Hello\\n"', String(), NoOne))
 
-    print(op_valid(Add(), Int(), Float()))
-    # print(op_valid('-', Int(), Float(), NoOne))
-    print(op_valid(Add(), String(), Float()))
-    print(op_valid(Add(), String(), String()))
+#     print(op_valid(Add(), Int(), Float()))
+#     # print(op_valid('-', Int(), Float(), NoOne))
+#     print(op_valid(Add(), String(), Float()))
+#     print(op_valid(Add(), String(), String()))
 
-    print(op_res(Add(), make_value('10', Int(), NoOne), make_value('20', Int(), NoOne), NoOne))
-    print(op_res(Sub(), make_value('10', Int(), NoOne), make_value('20', Int(), NoOne), NoOne))
-    print(op_res(Mul(), make_value('10', Int(), NoOne), make_value('20', Int(), NoOne), NoOne))
-    print(op_res(Div(), make_value('25', Int(), NoOne), make_value('10', Int(), NoOne), NoOne))
+#     print(op_res(Add(), make_value('10', Int(), NoOne), make_value('20', Int(), NoOne), NoOne))
+#     print(op_res(Sub(), make_value('10', Int(), NoOne), make_value('20', Int(), NoOne), NoOne))
+#     print(op_res(Mul(), make_value('10', Int(), NoOne), make_value('20', Int(), NoOne), NoOne))
+#     print(op_res(Div(), make_value('25', Int(), NoOne), make_value('10', Int(), NoOne), NoOne))
 
-    print(op_res(Add(), make_value('20', Int(), NoOne), make_value('10.0', Float(), NoOne), NoOne))
-    # print(op_res(Add(), make_value('20', String(), NoOne), make_value('10.0', Float(), NoOne), NoOne))
+#     print(op_res(Add(), make_value('20', Int(), NoOne), make_value('10.0', Float(), NoOne), NoOne))
+#     # print(op_res(Add(), make_value('20', String(), NoOne), make_value('10.0', Float(), NoOne), NoOne))
 
-    print(cpp_repr(op_res(Add(), make_value('"20"', String(), NoOne), make_value('"10.0"', String(), NoOne), NoOne)))
-    print(cpp_repr(op_res(Add(), make_value('"\tHello "', String(), NoOne), make_value('"World\n"', String(), NoOne), NoOne)))
-    print(make_value('"\tHello"', String(), NoOne))
+#     print(cpp_repr(op_res(Add(), make_value('"20"', String(), NoOne), make_value('"10.0"', String(), NoOne), NoOne)))
+#     print(cpp_repr(op_res(Add(), make_value('"\tHello "', String(), NoOne), make_value('"World\n"', String(), NoOne), NoOne)))
+#     print(make_value('"\tHello"', String(), NoOne))
 
 
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()
 
 

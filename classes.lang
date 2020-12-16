@@ -1,0 +1,18 @@
+
+//f:float = 4.04
+
+
+class Foo {
+	x:int
+	y:int
+	z:int = 3
+
+
+	func method():void{
+
+	}
+}
+
+my_instance:Foo = Foo()
+
+//class Bar {}

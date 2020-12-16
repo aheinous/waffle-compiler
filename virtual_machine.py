@@ -1,6 +1,6 @@
 
 
-from type_system import TypedStr, TypedValue
+from typed_data import LValue, TFrag, RValue
 
 
 class VirtualMachine:
@@ -11,7 +11,7 @@ class VirtualMachine:
 
 
     def comp_push(self, typed_str):
-        assert isinstance(typed_str, TypedStr)
+        assert isinstance(typed_str, TFrag)
         self._comp_stack.append(typed_str)
 
     def comp_pop(self):
@@ -20,7 +20,7 @@ class VirtualMachine:
 
 
     def run_push(self, data):
-        assert isinstance(data, TypedValue)
+        assert isinstance(data, (RValue,LValue))
         self._run_stack.append(data)
 
     def run_pop(self):

@@ -1,8 +1,11 @@
+from typed_data import TSym, RValue, regNewType, typeFromString
 from instruction_block import Block
 from lark.visitors import Interpreter
 from position import Position
-from instructions import Func, Assign, InitFunc, Mixin, MixinStatements, Push, Pushi, Pop, Decl, IfElse, WhileLoop, Rtn, Call, BinOp, UnaryOp
-from type_system import And, Eq, Gt, GtEq, Lt, LtEq, NotEq, Or, make_type, make_value, TypedValue, TypedSym, Add, Sub, Mul, Div, Neg, Int, Float, String
+from instructions import (  ClassDecl, Func, Assign, InitFunc, Mixin, MixinStatements,
+                            ObjectInit, Push, Pushi, Pop, Decl, IfElse, WhileLoop, Rtn,
+                            Call, BinOp, UnaryOp )
+from type_system import And, Eq, Gt, GtEq, Lt, LtEq, NotEq, Or,  Add, Sub, Mul, Div, Neg, Int, Float, String
 
 def _get_sym(sym):
     assert sym.data == 'sym'
@@ -10,11 +13,11 @@ def _get_sym(sym):
 
 def _get_type(type_, pos):
     assert type_.data == 'type'
-    return make_type(str(type_.children[0]), pos)
+    return typeFromString(str(type_.children[0]), pos)
 
 
 def _get_sym_and_type(two_children, pos):
-    return TypedSym(
+    return TSym(
         _get_sym(two_children[0]),
         _get_type(two_children[1], pos)
     )
@@ -66,7 +69,8 @@ class InstructionGenerator(Interpreter):
 
     def _visit_get_instrs(self, tree):
         self._instrn_recorder.push()
-        self.visit(tree)
+        if len(tree.children):
+            self.visit(tree)
         instrns = self._instrn_recorder.pop()
         return instrns
 
@@ -136,27 +140,34 @@ class InstructionGenerator(Interpreter):
 
     @add_position_arg
     def assign(self, tree, pos):
-        self.visit(tree.children[1])
-        self._instrn_recorder.add_instrn(Assign( _get_sym(tree.children[0]), pos ) )
+        self.visit_children(tree)
+        self._instrn_recorder.add_instrn(Assign(pos))
 
 
 
     @add_position_arg
     def integer(self, tree, pos):
         str_repr = str(tree.children[0])
-        typed_value = make_value(str_repr, Int(), pos)
+        typed_value = RValue.fromString(str_repr, Int(), pos)
         self._instrn_recorder.add_instrn(Pushi(typed_value, pos))
 
     @add_position_arg
     def floating_pt(self, tree, pos):
         str_repr = str(tree.children[0])
-        typed_value = make_value(str_repr, Float(), pos)
+        typed_value = RValue.fromString(str_repr, Float(), pos)
         self._instrn_recorder.add_instrn(Pushi(typed_value, pos))
 
     @add_position_arg
     def string(self, tree, pos):
         str_repr = str(tree.children[0])
-        typed_value = make_value(str_repr, String(), pos)
+        typed_value = RValue.fromString(str_repr, String(), pos)
+        self._instrn_recorder.add_instrn(Pushi(typed_value, pos))
+
+
+    @add_position_arg
+    def multiline_string(self, tree, pos):
+        str_repr = str(tree.children[0])[2:-2]
+        typed_value = RValue.fromString(str_repr, String(), pos)
         self._instrn_recorder.add_instrn(Pushi(typed_value, pos))
 
 
@@ -175,9 +186,10 @@ class InstructionGenerator(Interpreter):
     def decl_init(self, tree, pos):
         typed_sym = _get_sym_and_type(tree.children[0:2], pos)
         exprn = tree.children[2]
-        self.visit(exprn)
         self._instrn_recorder.add_instrn(Decl( typed_sym, pos ))
-        self._instrn_recorder.add_instrn(Assign( typed_sym.sym, pos))
+        self._instrn_recorder.add_instrn(Push( typed_sym.sym, pos))
+        self.visit(exprn)
+        self._instrn_recorder.add_instrn(Assign(pos))
 
 
     @add_position_arg
@@ -212,25 +224,28 @@ class InstructionGenerator(Interpreter):
 
     @add_position_arg
     def func(self, tree, pos):
+        #  get args
         treeArgList = tree.children[1].children
         argList = []
         for i in range(0, len(treeArgList), 2):
             argList.append(_get_sym_and_type(treeArgList[i:i+2], pos))
 
-
+        # get sym and rtn type
         sym = _get_sym(tree.children[0])
         rtn_type = _get_type(tree.children[2], pos)
 
+        # get block instructions
         block = tree.children[3]
         block = self._visit_get_instrs(block)
 
-        '''make sure we end with a Rtn'''
+        # make sure we end with a Rtn
         if not block or not isinstance(block[-1], Rtn):
             block += [Rtn([], pos)]
 
-        typed_sym = TypedSym(sym, rtn_type)
+        # a function is a symbol, an arglist, and a block of code
+        typed_sym = TSym(sym, rtn_type)
         func = Func(typed_sym, argList, block, pos)
-        typed_func = TypedValue(func, rtn_type)
+        typed_func = RValue(func, rtn_type)
 
         self._instrn_recorder.add_instrn(InitFunc(typed_sym, typed_func, pos))
 
@@ -263,5 +278,34 @@ class InstructionGenerator(Interpreter):
     def mixin_statement(self, tree, pos):
         statements = self._visit_get_instrs(tree.children[0])
         self._instrn_recorder.add_instrn(MixinStatements(statements, pos))
+
+
+    @add_position_arg
+    def class_decl(self, tree, pos):
+        sym = _get_sym(tree.children[0])
+        contents = self._visit_get_instrs(tree.children[1])
+
+        uid = contents.uid
+
+        # new type
+        type_ = regNewType(sym, uid)
+
+        # make init function
+        typed_sym = TSym(sym, type_)
+        arg_list = []
+        rtn_exprn = Block( [ObjectInit(type_, pos)] )
+        rtn = Rtn(rtn_exprn, pos)
+        init_block = Block([rtn])
+
+        init_func = Func(typed_sym, arg_list, init_block, pos)
+        t_init_func = RValue(init_func, type_)
+
+        # ClassDecl registers init function
+        self._instrn_recorder.add_instrn(ClassDecl(typed_sym, contents, t_init_func, pos))
+
+    @add_position_arg
+    def class_content(self, tree, pos):
+        self.visit_children(tree)
+
 
 

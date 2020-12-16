@@ -1,6 +1,7 @@
+from type_system import Void
 from exceptions import RtnException
-from type_system import TypedValue, Void, check_assign_okay, op_res
-from context import VALUE
+from typed_data import LValue, RValue
+from context import TYPE, VALUE
 from instruction_tree_visitor import InstrnTreeVisitor
 
 
@@ -18,14 +19,21 @@ class InstrnTreeRunner(InstrnTreeVisitor):
 
 
     def visit_Assign(self, assign):
-        typed_value = self.vm.run_pop()
-        self.ctx.assign_symbol(assign.sym, typed_value, assign.pos)
+        r_value = self.vm.run_pop()
+        l_value = self.vm.run_pop()
+        l_value.assign(r_value, self.ctx, assign.pos)
 
     def visit_Decl(self, decl):
         self.ctx.declare_symbol(decl.typed_sym, decl.pos)
 
     def visit_Push(self, push):
-        self.vm.run_push(self.ctx.read(push.sym, VALUE, push.pos))
+        l_value = LValue(
+            push.sym,
+            self.ctx.read(push.sym, TYPE, push.pos),
+            self.ctx.cur_scope_uid()
+
+        )
+        self.vm.run_push(l_value)
 
     def visit_Pushi(self, push):
         self.vm.run_push(push.value)
@@ -36,17 +44,16 @@ class InstrnTreeRunner(InstrnTreeVisitor):
     def visit_BinOp(self, binop):
         right = self.vm.run_pop()
         left = self.vm.run_pop()
-        self.vm.run_push(op_res(binop.op, left, right, binop.pos))
+        self.vm.run_push(left.binOpRes(binop.op, right, self.ctx, binop.pos))
 
 
     def visit_UnaryOp(self, unaryop):
         operand = self.vm.run_pop()
-        self.vm.run_push(op_res(unaryop.op, operand, unaryop.pos))
-
+        self.vm.run_push(operand.unaryOpRes(unaryop.op, self.ctx, unaryop.pos))
 
     def visit_IfElse(self, ifelse):
         self.run(ifelse.condBlk)
-        cond = self.vm.run_pop().value
+        cond = self.vm.run_pop().value(self.ctx, ifelse.pos)
         if cond:
             with self.ctx.enter_scope(ifelse.ifBlk.uid):
                 self.run(ifelse.ifBlk)
@@ -59,7 +66,7 @@ class InstrnTreeRunner(InstrnTreeVisitor):
         while True:
             self.run(while_loop.condBlk)
             cond = self.vm.run_pop()
-            if not cond.value:
+            if not cond.value(self.ctx, while_loop.pos):
                 break
             with self.ctx.enter_scope(while_loop.loop.uid):
                 self.run(while_loop.loop)
@@ -73,7 +80,7 @@ class InstrnTreeRunner(InstrnTreeVisitor):
         for instrns in call.arg_exprns:
             self.run(instrns)
         t_func = self.ctx.read(call.func_sym, VALUE, call.pos)
-        func = t_func.value
+        func = t_func.value(self.ctx, call.pos)
 
         # Func
         with self.call_stack.push(func), self.ctx.enter_scope(func.instrns.uid):
@@ -91,17 +98,32 @@ class InstrnTreeRunner(InstrnTreeVisitor):
         if rtn.exprn:
             self.run(rtn.exprn)
         else:
-            self.vm.run_push(TypedValue(None, Void()))
-        check_assign_okay(self.call_stack.peek().rtn_type, self.vm.run_peek().type, rtn.pos)
+            self.vm.run_push(RValue(None, Void()))
+        rtnVal = self.vm.run_pop()
+        self.call_stack.checkRtnTypeOkay(rtnVal, rtn.pos)
+        self.vm.run_push(rtnVal.rvalue(self.ctx, rtn.pos))
         raise RtnException()
 
 
     def visit_Mixin(self, mixin):
         self.run(mixin.exprn)
         s = self.vm.run_pop()
-        self.compiler.run_exprn_code(s.value, mixin.pos)
+        self.compiler.run_exprn_code(s.value(self.ctx, mixin.pos), mixin.pos)
 
     def visit_MixinStatements(self, mixin):
         self.run(mixin.statements)
         s = self.vm.run_pop()
-        self.compiler.run_statement_code(s.value, mixin.pos)
+        self.compiler.run_statement_code(s.value(self.ctx, mixin.pos), mixin.pos)
+
+    def visit_ClassDecl(self, class_decl):
+        with self.ctx.enter_scope(class_decl.contents.uid):
+            self.visit_blk(class_decl.contents)
+
+        self.ctx.init_symbol(   class_decl.t_sym,
+                                    class_decl.t_init_func,
+                                    class_decl.pos)
+
+
+    def visit_ObjectInit(self, obj_init):
+        instance_id = self.ctx.init_obj(obj_init.type.uid)
+        self.vm.run_push(RValue(instance_id, obj_init.type))

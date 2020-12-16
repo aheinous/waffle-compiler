@@ -1,10 +1,7 @@
+from instruction_block import Block
 from instruction_tree_visitor import InstrnTreeVisitor
 import unittest
 from exceptions import SymbolNotFound, SymbolReassignment
-from type_system import (   check_assign_okay as type_sys_verify_assign,
-                            assign as type_sys_assign
-                            )
-
 
 VALUE = 'VALUE'
 TYPE = 'TYPE'
@@ -25,6 +22,11 @@ class SymbolTable:
     def __contains__(self, sym):
         return sym in self._tbl
 
+    def __str__(self):
+        l = []
+        for sym, field_dict in self._tbl.items():
+            l.append('{}: {}'.format(sym, field_dict))
+        return '\n'.join(l)
 
 class TestSymbolTable(unittest.TestCase):
     def test_insertGet(self):
@@ -50,14 +52,42 @@ class _Scope:
         self.children = []
         self.tmp_cnt = 0
 
+    def init_instance(self, instance_uid):
+        instance = _Scope()
+        instance.name = self.name
+        instance.uid = self.uid
+        instance.instance_uid = instance_uid
+        assert self.instance_uid is None
+        instance.symbol_tbl = self.symbol_tbl
+        instance.persists = self.persists
+        assert self.persists
+        instance.parent = self.parent
+        instance.symbol_values = {}
+        instance.children = self.children
+        instance.tmp_cnt = self.tmp_cnt
+        return instance
+
+    def __str__(self):
+        l = []
+        l.append('name: {}, uid: {}, instance_uid: {}'.format(self.name, self.uid, self.instance_uid))
+
+        if self.persists:
+            l.append('PERSISTS')
+
+        l.append('Values:{}'.format(self.symbol_values))
+
+        l.append('symbols: ')
+        l.append(str(self.symbol_tbl))
+        l.append('')
+        return '\n'.join(l)
 
     def insert(self, sym, field, value):
         if sym not in self.symbol_tbl:
-            # must init all symbols with type value first
+            'must init all symbols with type value first'
             assert field == TYPE
 
         if field == VALUE:
-            assert self.read(sym, TYPE) == value.type
+            #     assert self.read(sym, TYPE) == value.type
             self.symbol_values[sym] = value
             return
 
@@ -86,18 +116,24 @@ class ScopeTreeVisitor:
         for child in scope.children:
             self.visit(child)
 
+
+
 class ScopeTreePrinter(ScopeTreeVisitor):
     def __init__(self):
-        self.indent = 0
+        self.indent_cnt = 0
+
+    def _print(self, s):
+        indent_str = self.indent_cnt * 4 * ' '
+        print( '\n'.join((indent_str + ln for ln in s.split('\n'))))
 
     def visit(self, scope):
-        indent_str = self.indent*4*' '
-        print('{}name: {}, uid: {}'.format(indent_str, scope.name, scope.uid))
-        print('{}{}'.format(indent_str,scope.symbol_values))
-        self.indent += 1
+        self._print(str(scope))
+        self.indent_cnt  += 1
         self.visit_children(scope)
-        self.indent -= 1
+        self.indent_cnt  -= 1
 
+
+# TODO move
 class ScopeMaker(InstrnTreeVisitor):
 
     def __init__(self):
@@ -119,7 +155,7 @@ class ScopeMaker(InstrnTreeVisitor):
     def _pop(self):
         self._stack.pop()
 
-    def make_scopes(self, instrn_tree, start_scope=None):
+    def make_scopes(self, instrn_tree:Block, start_scope=None):
         if start_scope:
             self._stack.append(start_scope)
             self.visit_blk(instrn_tree)
@@ -130,15 +166,20 @@ class ScopeMaker(InstrnTreeVisitor):
         self._scopes = []
         return scopes
 
-    def visit_new_scope(self, name, instrns):
+    def visit_new_scope(self, name:str, instrns:Block):
         if not instrns:
             return
-        self._push(name, instrns.uid, instrns)
+        if len(self._scopes) == 0:
+            assert name == 'root'
+            instrns.persistent_scope = True
+        self._push( name,
+                    instrns.uid,
+                    persists = instrns.persistent_scope )
         self.visit_blk(instrns)
         self._pop()
 
 
-class RAII_Scope:
+class ScopeEntry:
     def __init__(self, ctx):
         self._ctx = ctx
 
@@ -148,12 +189,28 @@ class RAII_Scope:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._ctx._exit_scope()
 
+class GentleScopeEntry:
+    def __init__(self, ctx):
+        self._ctx = ctx
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._ctx._gently_exit_scope()
+
+
+
 class Context:
     def __init__(self):
-        self._scopes_by_uid = {}
+        none_scope = _Scope()
+        none_scope.name = 'none scope'
+
+        self._scopes_by_uid = {None:none_scope}
         self._cur_scope = None
         self._scope_history = []
         self._root = None
+        self._instance_uid_count = 0
 
     @property
     def cur_scope(self):
@@ -167,19 +224,43 @@ class Context:
                 assert self._root is None
                 self._root = scope
 
-    def enter_scope(self, uid, instanceid = None):
+    def init_obj(self, uid):
+        self._instance_uid_count += 1
+        instance_uid = ("obj", self._instance_uid_count)
+        base = self._scopes_by_uid[uid]
+        instance = base.init_instance(instance_uid)
+        if instance.parent:
+            instance.parent.children.append(instance)
+        self._scopes_by_uid[instance_uid] = instance
+        return instance_uid
+
+
+    def enter_scope(self, uid):
         self._scope_history.append(self._cur_scope)
         self._cur_scope = self._scopes_by_uid[uid]
-        return RAII_Scope(self)
+        return ScopeEntry(self)
 
+    def _gently_enter_scope(self, uid):
+        self._scope_history.append(self._cur_scope)
+        self._cur_scope = self._scopes_by_uid[uid]
+        return GentleScopeEntry(self)
+
+    def cur_scope_uid(self):
+        return self._cur_scope.uid
 
     def _exit_scope(self):
-        self._cur_scope.symbol_values = {}
+        if not self._cur_scope.persists:
+            self._cur_scope.symbol_values = {}
         self._cur_scope = self._scope_history.pop()
+
+
+    def _gently_exit_scope(self):
+        self._cur_scope = self._scope_history.pop()
+
 
     def init_symbol(self, typed_sym, typed_value, pos):
         self.declare_symbol(typed_sym, pos)
-        self.assign_symbol(typed_sym.sym, typed_value, pos)
+        self.assign_value(typed_sym.sym, typed_value, pos)
 
     def declare_symbol(self, typed_sym, pos):
         sym = typed_sym.sym
@@ -198,29 +279,39 @@ class Context:
                 break
             scope = scope.parent
 
-    def assign_symbol(self, sym, typed_value, pos):
+
+    def assign_value(self, sym, value, pos):
         for scope in self._scope_hierarchy():
             if sym in scope:
-                new_value = type_sys_assign(scope.read(sym, TYPE), typed_value, pos)
-                scope.insert(sym, VALUE, new_value)
+                # TODO verify this is type_checked elsewhere
+                # new_value = type_sys_assign(scope.read(sym, TYPE), t_value, pos)
+                scope.insert(sym, VALUE, value)
                 return
-        raise SymbolNotFound(pos)
+        raise SymbolNotFound(sym, pos)
 
+    def assign_value_at(self, uid, sym, value, pos):
+        with self._gently_enter_scope(uid):
+            for scope in self._scope_hierarchy():
+                if sym in scope:
+                    # TODO verify this is type_checked elsewhere
+                    # new_value = type_sys_assign(scope.read(sym, TYPE), t_value, pos)
+                    scope.insert(sym, VALUE, value)
+                    return
+            raise SymbolNotFound(sym, pos)
 
-    def check_assign_okay(self, sym, something_typed, pos):
-        for scope in self._scope_hierarchy():
-            if sym in scope:
-                type_sys_verify_assign(scope.read(sym, TYPE), something_typed.type, pos)
-                return
-        raise SymbolNotFound(pos)
 
 
     def read(self, sym, field, pos):
         for scope in self._scope_hierarchy():
             if sym in scope:
                 return scope.read(sym, field)
-        raise SymbolNotFound(pos)
+        raise SymbolNotFound(sym, pos)
 
+    def read_from_scope(self, sym, scope_uid, field, pos):
+        with self._gently_enter_scope(scope_uid):
+            return self.read(sym, field, pos)
+
+    # TODO: get rid of this ??
     def next_tmp(self):
         self._cur_scope.tmp_cnt += 1
         return self._cur_scope.tmp_cnt - 1

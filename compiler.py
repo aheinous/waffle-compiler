@@ -120,11 +120,14 @@ class Compiler:
             scope_printer.visit(scopes[0])
 
     def run_file(self, fname):
+        print('~'*90)
+        print('Running File: ' + fname)
         self._set_file(fname)
         try:
             self._run_file()
         except LarkError as e:
             self._on_error(e)
+        print('~'*90)
 
     def compile_statements(self, src,  pos):
         src = src.expandtabs(TAB_SIZE)
@@ -176,27 +179,32 @@ class Compiler:
 
 
     def compile_file(self, fname):
+        print('~'*90)
+        print('Running File: ' + fname)
         self._set_file(fname)
 
         try:
             self._compile_file()
         except LarkError as e:
             self._on_error(e)
+        print('~'*90)
 
 
 def main():
     compiler = Compiler()
     # compiler.run_file('mixin.lang')
-    compiler.run_file('operators.lang')
+    # compiler.run_file('operators.lang')
     # compiler = Compiler()
-    # compiler.run_file('complete.lang')
+    compiler.run_file('complete.lang')
+    # compiler.run_file('string.lang')
+    compiler.run_file('classes.lang')
 
     print('=============================================================='*2)
 
     # # compiler = Compiler()
     # compiler.compile_file('mixin.lang')
     # # compiler = Compiler()
-    # compiler.compile_file('complete.lang')
+    compiler.compile_file('complete.lang')
 
 
 if __name__ == '__main__':

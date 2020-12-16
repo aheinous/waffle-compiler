@@ -8,7 +8,7 @@ sdlfjs;dlfjs;
 
 a:int
 
-//a = 5
+a = 5
 
 b:int = 5
 
@@ -22,15 +22,15 @@ d:int = (12 - 2) * 10 / 5 // d = 20
 e:int = c * d // e = 220
 
 
-f:float = 12.3
+//f:float = 12.3
 
 func foo():float {
     t:float = 4.0
-    t = t + 3.1
+    //t = t + 3.1
     return t
 }
 
-f = foo() // f = 0.3
+f:float = foo() // f = 0.3
 
 
 // g:int = 100+100.0 // TODO make compile ERROR

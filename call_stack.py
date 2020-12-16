@@ -20,4 +20,7 @@ class CallStack:
 	def peek(self):
 		return self._stack[-1]
 
+	def checkRtnTypeOkay(self, rtnVal, pos):
+		rtnVal.checkCanAssignTo(self.peek().rtn_type, pos)
+
 

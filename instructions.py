@@ -1,13 +1,15 @@
+from position import Position
+from instruction_block import Block
 from call_stack import CallStack
 from context import TYPE, VALUE
 from exceptions import RtnException
-from type_system import TypedValue, TypedSym, TypedStr, Void, op_res, op_res_type, op_cpp_repr, type_cpp_repr, check_assign_okay
+from typed_data import RValue, TSym
 
 
 
 class Func:
     def __init__(self, typed_sym, args, instrns, pos):
-        assert isinstance(typed_sym, TypedSym)
+        assert isinstance(typed_sym, TSym)
         self.typed_sym = typed_sym
         self.args = args
         self.instrns = instrns
@@ -49,16 +51,15 @@ class UnaryOp(Instrn):
 
 
 class Assign(Instrn):
-    def __init__(self, sym, pos):
+    def __init__(self, pos):
         super().__init__(pos)
-        assert  isinstance(sym, str)
-        self.sym = sym
+
 
 
 class Decl(Instrn):
     def __init__(self, typed_sym, pos):
         super().__init__(pos)
-        assert isinstance(typed_sym, TypedSym)
+        assert isinstance(typed_sym, TSym)
         self.typed_sym = typed_sym
 
 
@@ -66,7 +67,7 @@ class Decl(Instrn):
 class Pushi(Instrn):
     def __init__(self, value, pos):
         super().__init__(pos)
-        assert isinstance(value, TypedValue)
+        assert isinstance(value, RValue)
         self.value = value
 
 
@@ -83,7 +84,7 @@ class InitFunc(Instrn):
         super().__init__(pos)
         self.typed_sym = typed_sym
         self.typed_func = typed_func
-        self._add_child_scope('func_blk', typed_func.value.instrns)
+        self._add_child_scope('func_blk', typed_func.value().instrns)
 
 
 
@@ -136,3 +137,19 @@ class MixinStatements(Instrn):
         self.statements = statements
 
 
+class ClassDecl(Instrn):
+    def __init__(   self, t_sym:TSym,
+                    contents:Block,
+                    t_init_func:RValue,
+                    pos:Position):
+        super().__init__(pos)
+        self.t_sym = t_sym
+        contents.persistent_scope = True
+        self.contents = contents
+        self.t_init_func = t_init_func
+        self._add_child_scope('contents', contents)
+
+class ObjectInit(Instrn):
+    def __init__(self, type_, pos:Position):
+        super().__init__(pos)
+        self.type = type_

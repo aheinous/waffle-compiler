@@ -1,4 +1,17 @@
 
+%import common.ESCAPED_STRING
+%import common.SIGNED_FLOAT
+%import common.SIGNED_INT
+%import common.CNAME
+%import common.WS
+%import common.C_COMMENT
+%import common.CPP_COMMENT
+
+%ignore WS
+%ignore C_COMMENT
+%ignore CPP_COMMENT
+
+
 ?start: program
 
 
@@ -11,6 +24,7 @@ ADDRS : "&"+
 type : [ADDRS] CNAME
 
 ?statement: assign
+			| class_decl
 			| func
 			| func_call  -> func_call_statement
 			| mixin -> mixin_statement
@@ -22,6 +36,21 @@ type : [ADDRS] CNAME
 			| block
 
 rtn: "return" [exprn]
+
+class_decl: "class" sym "{" class_content "}"
+
+class_content: class_content_item*
+
+?class_content_item: decl_init
+				| decl
+				| func
+
+
+
+_MULTILINE_STRING_INNER: /(.|\n)*?/
+_MULTILINE_STRING_ESC_INNER: _MULTILINE_STRING_INNER /(?<!\\)(\\\\)*?/
+
+ESCAPED_MULTILINE_STRING : "\"\"\"" _MULTILINE_STRING_ESC_INNER "\"\"\""
 
 
 if_elif: "if"  exprn  block ("elif"  exprn  block)* [ "else"  block  ]
@@ -69,7 +98,7 @@ assign: sym "=" exprn
 
 ?product: item
 		| product "*" item -> mult
-		|  product "/" item -> div
+		| product "/" item -> div
 
 ?item: SIGNED_INT -> integer
 		| SIGNED_FLOAT -> floating_pt
@@ -77,6 +106,7 @@ assign: sym "=" exprn
 		| "+" item
 		| "-" item -> neg
 		| "(" exprn ")"
+		| ESCAPED_MULTILINE_STRING -> multiline_string
 		| ESCAPED_STRING -> string
 		| func_call
 		| mixin -> mixin_exprn
@@ -84,17 +114,3 @@ assign: sym "=" exprn
 
 sym: CNAME
 
-
-%import common.ESCAPED_STRING
-
-%import common.SIGNED_FLOAT
-%import common.SIGNED_INT
-// %import common.SIGNED_NUMBER
-%import common.CNAME
-%import common.WS
-%import common.C_COMMENT
-%import common.CPP_COMMENT
-
-%ignore WS
-%ignore C_COMMENT
-%ignore CPP_COMMENT
