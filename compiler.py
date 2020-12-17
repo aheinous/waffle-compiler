@@ -1,4 +1,6 @@
 #! /usr/bin/python3
+from compile_cpp import compile_cpp
+from position import Position
 from exceptions import LarkErrorWithPos
 from instruction_tree_compiler import InstrnTreeCompiler
 from instruction_tree_runner import InstrnTreeRunner
@@ -34,9 +36,12 @@ class Compiler:
         self.src_fname = None
         self.src = None
 
-    def _set_file(self, src_fname):
+    def _set_file(self, src_fname, src=None):
         self._reset()
         self.src_fname = src_fname
+        if src:
+            self.src = src.expandtabs(TAB_SIZE)
+            return
         with open(src_fname, 'r') as src_file:
             self.src = ''.join(src_file.readlines()).expandtabs(TAB_SIZE)
 
@@ -102,31 +107,32 @@ class Compiler:
         ast = self.parser.parse(self.src)
 
 
-        print(ast.pretty())
+        # print(ast.pretty())
         instrn_tree = self.instruction_generator.gen_instrn_tree(ast, self.src_fname)
 
-        itp = InstrnTreePrinter()
-        itp.start(instrn_tree)
+        # itp = InstrnTreePrinter()
+        # itp.start(instrn_tree)
 
         scopes = self.scope_maker.make_scopes(instrn_tree)
         self.context.add_new_scopes(scopes)
 
-        scope_printer = ScopeTreePrinter()
-        scope_printer.visit(scopes[0])
+        # scope_printer = ScopeTreePrinter()
+        # scope_printer.visit(scopes[0])
 
         with self.context.enter_scope(instrn_tree.uid):
             self.tree_runner.run(instrn_tree)
-            scope_printer.visit(scopes[0])
+            # scope_printer.visit(scopes[0])
+            self.run_exprn_code('main()', Position('nowhere', 0,0,0,0))
 
-    def run_file(self, fname):
-        print('~'*90)
+    def run_file(self, fname, src=None):
+        # print('~'*90)
         print('Running File: ' + fname)
-        self._set_file(fname)
+        self._set_file(fname, src)
         try:
             self._run_file()
         except LarkError as e:
             self._on_error(e)
-        print('~'*90)
+        # print('~'*90)
 
     def compile_statements(self, src,  pos):
         src = src.expandtabs(TAB_SIZE)
@@ -159,51 +165,60 @@ class Compiler:
     def _compile_file(self):
         ast = self.parser.parse(self.src)
 
-        print(ast.pretty())
+        # print(ast.pretty())
         instrn_tree = self.instruction_generator.gen_instrn_tree(ast, self.src_fname)
 
-        itp = InstrnTreePrinter()
-        itp.start(instrn_tree)
+        # itp = InstrnTreePrinter()
+        # itp.start(instrn_tree)
 
         scopes = self.scope_maker.make_scopes(instrn_tree)
         self.context.add_new_scopes(scopes)
 
-        scope_printer = ScopeTreePrinter()
-        scope_printer.visit(scopes[0])
+        # scope_printer = ScopeTreePrinter()
+        # scope_printer.visit(scopes[0])
 
         with self.context.enter_scope(instrn_tree.uid):
             code = self.tree_compiler.compile_tree(instrn_tree)
-            print('\n'.join(code))
+            # print('\n'.join(code))
+            compile_cpp(code)
 
 
 
-    def compile_file(self, fname):
-        print('~'*90)
+    def compile_file(self, fname, src=None):
+        # print('~'*90)
         print('Running File: ' + fname)
-        self._set_file(fname)
+        self._set_file(fname, src)
 
         try:
             self._compile_file()
         except LarkError as e:
             self._on_error(e)
-        print('~'*90)
+        # print('~'*90)
+
+
 
 
 def main():
     compiler = Compiler()
     # compiler.run_file('mixin.lang')
     # compiler.run_file('operators.lang')
-    # compiler = Compiler()
-    compiler.run_file('complete.lang')
+
+    # compiler.run_file('complete.lang')
+    # compiler.run_file('main.lang')
     # compiler.run_file('string.lang')
-    compiler.run_file('classes.lang')
+    # compiler.run_file('classes.lang')
+
+    # compiler.run_file('test_code/mixin.lang')
 
     print('=============================================================='*2)
 
-    # # compiler = Compiler()
-    # compiler.compile_file('mixin.lang')
-    # # compiler = Compiler()
-    compiler.compile_file('complete.lang')
+    compiler.compile_file('test_code/mixin_fail.lang')
+    # compiler.compile_file('fakefile', src)
+
+    # # compiler.compile_file('complete.lang')
+    # # compiler.compile_file('main.lang')
+
+
 
 
 if __name__ == '__main__':

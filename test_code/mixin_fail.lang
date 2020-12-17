@@ -1,0 +1,7 @@
+ func fuck(s:string):int {
+     s = s + "*3"
+     return mixin(s)
+ }
+
+
+ func main():int { return 0}

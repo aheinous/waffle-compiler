@@ -46,3 +46,14 @@ class UnrecognizedType(VMRuntimeException):
 class IllegalOperation(VMRuntimeException):
     def __init__(self,  op, pos):
         super().__init__("The {} operation is illegal in this context.".format(op), pos)
+
+class ReadUninitializedValue(VMRuntimeException):
+    def __init__(self,  sym, pos):
+        super().__init__('Reading uninitialized value: "' + sym +'"', pos)
+        self.sym = sym
+
+class MixinException(VMRuntimeException):
+    def __init__(self, sym, pos):
+        self.sym = sym
+        super().__init__('The symbol {} is unknowable at compile time.'.format(sym), pos)
+

@@ -1,0 +1,5 @@
+func main():int {
+	x:int = 100
+	plocal
+	return 0
+}

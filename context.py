@@ -1,5 +1,5 @@
 import unittest
-from exceptions import SymbolNotFound, SymbolReassignment
+from exceptions import ReadUninitializedValue, SymbolNotFound, SymbolReassignment
 
 VALUE = 'VALUE'
 TYPE = 'TYPE'
@@ -92,8 +92,10 @@ class Scope:
         self.symbol_tbl.insert(sym, field, value)
 
 
-    def read(self, sym, field):
+    def read(self, sym, field, pos):
         if field == VALUE:
+            if sym in self.symbol_tbl and not self.symbol_values:
+                raise ReadUninitializedValue(sym, pos)
             return self.symbol_values[sym]
         return self.symbol_tbl.read(sym, field)
 
@@ -254,7 +256,7 @@ class Context:
     def read(self, sym, field, pos):
         for scope in self._scope_hierarchy():
             if sym in scope:
-                return scope.read(sym, field)
+                return scope.read(sym, field, pos)
         raise SymbolNotFound(sym, pos)
 
     def read_from_scope(self, sym, scope_uid, field, pos):

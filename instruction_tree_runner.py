@@ -127,3 +127,11 @@ class InstrnTreeRunner(InstrnTreeVisitor):
     def visit_ObjectInit(self, obj_init):
         instance_id = self.ctx.init_obj(obj_init.type.uid)
         self.vm.run_push(RValue(instance_id, obj_init.type))
+
+    def visit_PLocal(self, plocal):
+        localvar = self.ctx.cur_scope.symbol_values
+        localvar = sorted(localvar.items())
+        print('vvvvv PLocal vvvvv')
+        for sym, val in localvar:
+            print('{} ; {} ; {}'.format(sym, val.value(), val.type_repr))
+        print('^^^^^ PLocal ^^^^^')

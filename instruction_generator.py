@@ -3,7 +3,7 @@ from instruction_block import Block
 from lark.visitors import Interpreter
 from position import Position
 from instructions import (  ClassDecl, Func, Assign, InitFunc, Mixin, MixinStatements,
-                            ObjectInit, Push, Pushi, Pop, Decl, IfElse, WhileLoop, Rtn,
+                            ObjectInit, PLocal, Push, Pushi, Pop, Decl, IfElse, WhileLoop, Rtn,
                             Call, BinOp, UnaryOp )
 from type_system import (   And, Eq, Gt, GtEq, Lt, LtEq, NotEq, Or,  Add, Sub, Mul,
                             Div, Neg, Int, Float, String )
@@ -307,6 +307,10 @@ class InstructionGenerator(Interpreter):
     @add_position_arg
     def class_content(self, tree, pos):
         self.visit_children(tree)
+
+    @add_position_arg
+    def plocal(self, tree, pos):
+        self._instrn_recorder.add_instrn(PLocal(pos))
 
 
 

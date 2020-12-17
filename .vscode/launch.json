@@ -9,7 +9,7 @@
 			"type": "python",
 			"request": "launch",
 			"module": "unittest",
-			"args": ["context.py"]
+			"args": []
 		},
 		{
 			"name": "Python: Current File",

@@ -164,6 +164,8 @@ def op_cpp_repr(op) -> str:
                 GtEq, '>=',
                 Lt,   '<',
                 LtEq, '<=',
+                And,  '&&',
+                Or,   '||',
                 )
 
 def check_assign_okay(l_type, r_type, pos):

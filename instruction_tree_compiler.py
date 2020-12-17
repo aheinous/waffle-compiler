@@ -1,3 +1,4 @@
+from exceptions import MixinException, ReadUninitializedValue
 from type_system import Void
 from typed_data import TFrag
 from context import TYPE, VALUE
@@ -34,6 +35,8 @@ class InstrnTreeCompiler(InstrnTreeVisitor):
 
 
     def compile_tree(self, instrn_blk):
+        self._add_code('#include <iostream>')
+        self._add_code('#include <string>')
         self.visit_blk(instrn_blk)
         code = self._code
         self._code = []
@@ -171,12 +174,27 @@ class InstrnTreeCompiler(InstrnTreeVisitor):
     def visit_Mixin(self, mixin):
         self.compiler.run_exprn_tree(mixin.exprn, mixin.pos)
         code = self.vm.run_pop()
-        sub_tree = self.compiler.compile_exprn_code(code.value, mixin.pos)
+        try:
+            value = code.value(self.ctx, mixin.pos)
+        except ReadUninitializedValue as e:
+            raise MixinException(e.sym, e.pos)
+        sub_tree = self.compiler.compile_exprn_code(value, mixin.pos)
         self.visit_blk(sub_tree)
 
     def visit_MixinStatements(self, mixin):
         self.compiler.run_exprn_tree(mixin.statements, mixin.pos)
         s = self.vm.run_pop()
-        sub_tree = self.compiler.compile_statements(s.value, mixin.pos)
+        s = s.value(self.ctx, mixin.pos)
+        sub_tree = self.compiler.compile_statements(s, mixin.pos)
         InstrnTreePrinter().start(sub_tree)
         self.visit_blk(sub_tree)
+
+
+    def visit_PLocal(self, plocal):
+        inner_tbl = self.ctx.cur_scope.symbol_tbl._tbl
+        syms = sorted(inner_tbl.keys())
+        self._add_code('std::cout << "vvvvv PLocal vvvvv" << std::endl;')
+        for sym in syms:
+            type_ = self.ctx.read(sym, TYPE, plocal.pos)
+            self._add_code('std::cout << "{} ; " << {} << " ; {}" << std::endl;'.format(sym, sym, type_.repr))
+        self._add_code('std::cout << "^^^^^ PLocal ^^^^^" << std::endl;')
