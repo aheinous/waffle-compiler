@@ -7,6 +7,7 @@ from instructions import (  ClassDecl, Func, Assign, InitFunc, Mixin, MixinState
                             Call, BinOp, UnaryOp )
 from type_system import (   And, Eq, Gt, GtEq, Lt, LtEq, NotEq, Or,  Add, Sub, Mul,
                             Div, Neg, Int, Float, String )
+import type_system as type_sys
 
 def _get_sym(sym):
     assert sym.data == 'sym'
@@ -193,32 +194,76 @@ class InstructionGenerator(Interpreter):
         self._instrn_recorder.add_instrn(Assign(pos))
 
 
+# '''
+#   func
+#     sym main
+#     decl_arg_list
+#     type        int
+#     block
+#       if_statement
+#         sym     x
+#         block
+#         assign
+#           sym   z
+#           integer       4
+#       if_statement
+#         sym     x
+#         block
+#         elif
+#           integer       4
+#           assign
+#             sym z
+#             integer     4
+#           block
+#       rtn
+#         integer 0
+
+# '''
+
     @add_position_arg
-    def if_elif(self, tree, pos):
-        children = tree.children
-        elseBlk = Block()
-        elsePos  = None
-        if len(children) % 2 == 1: # if else block at end of if elif chain
-            elseBlk = self._visit_get_instrs(children[-1])
+    def if_statement(self, tree, pos):
+        # children[0] is void
+        cond = self._visit_get_instrs(tree.children[1])
+        ifBlk = self._visit_get_instrs(tree.children[2])
+        elseBlk = self._visit_get_instrs(tree.children[3])
 
-        start = len(children) - (len(children) % 2) - 2
+        self._instrn_recorder.add_instrn(IfElse(cond, ifBlk, elseBlk, pos))
+
+    @add_position_arg
+    def elif_statement(self, tree, pos):
+        cond = self._visit_get_instrs(tree.children[1])
+        ifBlk = self._visit_get_instrs(tree.children[2])
+        elseBlk = self._visit_get_instrs(tree.children[3]) if len(tree.children) >= 4 else Block()
+
+        self._instrn_recorder.add_instrn(IfElse(cond, ifBlk, elseBlk, pos))
 
 
-        for i in range(start, -2, -2):
-            cond =  self._visit_get_instrs(children[i])
-            ifBlk = self._visit_get_instrs(children[i+1])
-            pos = cond[0].pos
-            elseBlk = Block([IfElse(cond, ifBlk, elseBlk, pos)])
 
-        self._instrn_recorder.add_instrn(elseBlk[0])
+    # @add_position_arg
+    # def if_elif(self, tree, pos):
+    #     children = tree.children
+    #     elseBlk = Block()
+    #     if len(children) % 2 == 0: # if else block at end of if elif chain
+    #         elseBlk = self._visit_get_instrs(children[-1])
+
+    #     start = len(children) - (len(children) % 2) - 2
+
+
+    #     for i in range(start, -2, -2):
+    #         cond =  self._visit_get_instrs(children[i])
+    #         ifBlk = self._visit_get_instrs(children[i+1])
+    #         pos = cond[0].pos
+    #         elseBlk = Block([IfElse(cond, ifBlk, elseBlk, pos)])
+
+    #     self._instrn_recorder.add_instrn(elseBlk[0])
 
 
 
     @add_position_arg
     def while_loop(self, tree, pos):
         children = tree.children
-        cond = self._visit_get_instrs(children[0])
-        loop = self._visit_get_instrs(children[1])
+        cond = self._visit_get_instrs(children[1])
+        loop = self._visit_get_instrs(children[2])
 
         whileloop = WhileLoop(cond, loop, pos)
         self._instrn_recorder.add_instrn(whileloop)
@@ -227,13 +272,18 @@ class InstructionGenerator(Interpreter):
     def func(self, tree, pos):
         #  get args
         treeArgList = tree.children[1].children
-        argList = []
+        argTSyms = []
+        argTypes = []
         for i in range(0, len(treeArgList), 2):
-            argList.append(_get_sym_and_type(treeArgList[i:i+2], pos))
+            argTSyms.append(_get_sym_and_type(treeArgList[i:i+2], pos))
+            argTypes.append(_get_type(treeArgList[i+1], pos))
 
         # get sym and rtn type
         sym = _get_sym(tree.children[0])
         rtn_type = _get_type(tree.children[2], pos)
+
+        # init type
+        type_ = type_sys.Function(argTypes, rtn_type)
 
         # get block instructions
         block = tree.children[3]
@@ -244,9 +294,9 @@ class InstructionGenerator(Interpreter):
             block += [Rtn([], pos)]
 
         # a function is a symbol, an arglist, and a block of code
-        typed_sym = TSym(sym, rtn_type)
-        func = Func(typed_sym, argList, block, pos)
-        typed_func = RValue(func, rtn_type)
+        typed_sym = TSym(sym, type_)
+        func = Func(typed_sym, argTSyms, block, pos)
+        typed_func = RValue(func, type_)
 
         self._instrn_recorder.add_instrn(InitFunc(typed_sym, typed_func, pos))
 
@@ -288,21 +338,23 @@ class InstructionGenerator(Interpreter):
 
         uid = contents.uid
 
+        type_ = type_sys.Class(sym, uid)
+
         # new type
-        type_ = regNewType(sym, uid)
+        regNewType(sym, type_)
 
         # make init function
-        typed_sym = TSym(sym, type_)
-        arg_list = []
-        rtn_exprn = Block( [ObjectInit(type_, pos)] )
-        rtn = Rtn(rtn_exprn, pos)
-        init_block = Block([rtn])
+        tsym = TSym(sym, type_)
+        # arg_list = []
+        # preUsrInit = Block( [ObjectInit(type_, pos)] )
+        # rtn = Rtn(rtn_exprn, pos)
+        # init_block = Block([rtn])
 
-        init_func = Func(typed_sym, arg_list, init_block, pos)
-        t_init_func = RValue(init_func, type_)
+        # init_func = Func(tsym, arg_list, init_block, pos)
+        # t_init_func = RValue(init_func, type_)
 
         # ClassDecl registers init function
-        self._instrn_recorder.add_instrn(ClassDecl(typed_sym, contents, t_init_func, pos))
+        self._instrn_recorder.add_instrn(ClassDecl(tsym,  contents, pos))
 
     @add_position_arg
     def class_content(self, tree, pos):

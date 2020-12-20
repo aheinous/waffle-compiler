@@ -1,0 +1,96 @@
+
+func voidrtn() : void {
+
+}
+
+func noreturntype() : {
+
+
+}
+
+
+
+# if (someGarbage()) {
+
+}
+# else {
+	x:int = 3;
+
+	func thing():{
+		#if whatever() {
+
+		}
+	}
+}
+
+
+
+class Stuff {
+	//method init(x:int, y:int, z:int){
+
+	//}
+
+	x:i32 = 100;
+	z:i8;
+
+
+
+	method thing():{
+		int:x;
+	}
+
+	vmethod other() :{
+
+	}
+}
+
+
+
+func classTest():{
+	s:Stuff =  Stuff();
+	s.x.y = 100;
+	//x = 5 + s.z.y;
+
+	x.s()  = y.z(500);
+
+	if blah {
+		x:somevar = 0;
+	}
+
+
+}
+
+
+
+
+/*
+# while(x) {
+	y:int = 3;
+}
+
+func main():int {
+
+	x:#int;
+	y:#int = 10;
+
+	p:&int;
+	pp : &&int;
+	return 0;
+}
+
+
+func main():int {
+
+	# while(100) {
+
+	}
+
+	for i:int = foo(); i<someBS() ; i = i+1 {
+
+	}
+
+	fore x:int in gimmieShit() {
+
+	}
+
+}*/

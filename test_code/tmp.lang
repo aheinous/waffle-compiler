@@ -1,0 +1,16 @@
+func main():int {
+    while 0 {
+        i:int = 0;
+        if a {
+            i:int = 10;
+            a = a -1;
+        } elif b {
+            i:int = 100;
+            b = 0;
+        } elif c {
+            i:int = 1000;
+            //return
+        }
+    }
+    return 0;
+}

@@ -1,3 +1,4 @@
+from instructions import ClassDecl
 from type_system import Void
 from exceptions import RtnException
 from typed_data import LValue, RValue
@@ -79,19 +80,24 @@ class InstrnTreeRunner(InstrnTreeVisitor):
         # Call
         for instrns in call.arg_exprns:
             self.run(instrns)
-        t_func = self.ctx.read(call.func_sym, VALUE, call.pos)
-        func = t_func.value(self.ctx, call.pos)
 
-        # Func
-        with self.call_stack.push(func), self.ctx.enter_scope(func.instrns.uid):
-            for arg in reversed(func.args):
-                self.ctx.init_symbol(arg, self.vm.run_pop(), func.pos)
-            try:
-                self.run(func.instrns)
-            except RtnException as e:
-                pass
+        t_callable = self.ctx.read(call.func_sym, VALUE, call.pos)
+        callable = t_callable.value(self.ctx, call.pos)
 
 
+        if isinstance(callable, ClassDecl):
+            self.initObject(callable)
+        else:
+
+            func = callable
+            # Func
+            with self.call_stack.push(func), self.ctx.enter_scope(func.instrns.uid):
+                for arg in reversed(func.args):
+                    self.ctx.init_symbol(arg, self.vm.run_pop(), func.pos)
+                try:
+                    self.run(func.instrns)
+                except RtnException as e:
+                    pass
 
 
     def visit_Rtn(self, rtn):
@@ -113,20 +119,35 @@ class InstrnTreeRunner(InstrnTreeVisitor):
     def visit_MixinStatements(self, mixin):
         self.run(mixin.statements)
         s = self.vm.run_pop()
-        self.compiler.run_statement_code(s.value(self.ctx, mixin.pos), mixin.pos)
+        # code = s.value(self.ctx, mixin.pos) + ';'
+
+        self.compiler.run_statement_code(s.value(self.ctx, mixin.pos)+';', mixin.pos)
 
     def visit_ClassDecl(self, class_decl):
-        with self.ctx.enter_scope(class_decl.contents.uid):
-            self.visit_blk(class_decl.contents)
+        # with self.ctx.enter_scope(class_decl.contents.uid):
+        #     self.visit_blk(class_decl.contents)
 
-        self.ctx.init_symbol(   class_decl.t_sym,
-                                    class_decl.t_init_func,
+        self.ctx.init_symbol(       class_decl.t_sym,
+                                    RValue(class_decl, class_decl.t_sym.type),
                                     class_decl.pos)
 
 
-    def visit_ObjectInit(self, obj_init):
-        instance_id = self.ctx.init_obj(obj_init.type.uid)
-        self.vm.run_push(RValue(instance_id, obj_init.type))
+    def initObject(self, classDecl):
+        instance_id = self.ctx.init_obj(classDecl.uid)
+        self.vm.run_push(RValue(instance_id, classDecl.type))
+
+        with self.ctx.enter_scope(instance_id):
+            self.run(classDecl.contents)
+
+
+
+
+
+
+
+    # def visit_ObjectInit(self, obj_init):
+    #     instance_id = self.ctx.init_obj(obj_init.type.uid)
+    #     self.vm.run_push(RValue(instance_id, obj_init.type))
 
     def visit_PLocal(self, plocal):
         localvar = self.ctx.cur_scope.symbol_values

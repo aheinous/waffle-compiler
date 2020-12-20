@@ -1,11 +1,11 @@
 
-//f:float = 4.04
+
 
 
 class Foo {
-	x:int
-	y:int
-	z:int = 3
+	x:int;
+	y:int;
+	z:int = 3;
 
 
 	func method():void{
@@ -13,6 +13,19 @@ class Foo {
 	}
 }
 
-my_instance:Foo = Foo()
 
 //class Bar {}
+
+
+func main():int{
+	my_instance:Foo = Foo();
+//	my_instance.x = 100
+
+	y:int = my_instance.x;
+	my_instance.x = y;
+	plocal;
+	return 0;
+}
+
+
+

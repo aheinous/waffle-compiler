@@ -12,65 +12,131 @@
 %ignore CPP_COMMENT
 
 
+
+
 ?start: program
 
 
-program: statement*
+program: global_statement*
 
 ?block : "{" statement* "}"
+?global_block : "{" global_statement* "}"
 
-ADDRS : "&"+
 
-type : [ADDRS] CNAME
 
-?statement: assign
-			| class_decl
-			| func
-			| func_call  -> func_call_statement
-			| mixin -> mixin_statement
-			| "while" exprn block -> while_loop
-			| if_elif
-			| rtn
-			| decl
-			| decl_init
-			| block
-			| "plocal" -> plocal
+?global_statement: class_decl
+				| func
+				| mixin ";" -> mixin_statement
+				| decl ";"
+				| decl_init ";"
+				| global_static_if_elif
+				| global_static_while_loop
+				| global_static_for_loop
+
+?statement: 		if_statement
+					| mixin ";" -> mixin_statement
+					| static_if_elif
+					| while_loop
+					| static_while_loop
+					| for_loop
+					| static_for_loop
+					| for_each_loop
+					| rtn ";"
+					| decl ";"
+					| decl_init ";"
+					| block
+					| assign ";"
+					| func_call ";"
+					| "plocal"  ";" -> plocal
+
+
+
+
+decl: sym ":" type
+decl_init: sym ":" type "=" exprn
+assign: lvalue "=" exprn
+
+
+class_decl: "class" sym "{" class_content "}"
+class_content: class_content_item*
+?class_content_item: decl_init ";"
+						| decl ";"
+						| func
+						| method
+						| vmethod
+
+
+// func: "func" sym "(" decl_arg_list ")"  ":" rtn_type block
+
+func: _func{"func"}
+method: _func{"method"}
+vmethod: _func{"vmethod"}
+
+
+_func{kwd}: kwd sym "(" decl_arg_list ")"  ":" rtn_type block
+decl_arg_list: [ sym ":" type ("," sym ":" type)*]
+
+?rtn_type:  type |  void
+void:
+
+
+func_call: sym "(" call_arg_list ")"
+call_arg_list: [ exprn ("," exprn )*]
+
+
+// _if_elif{ mods, blk }: mods "if"  exprn  blk ( mods "elif"  exprn  blk)* [ mods "else"  blk  ]
+// if_elif: 				_if_elif{ void , block}
+// static_if_elif: 		_if_elif{ "#" , block}
+// global_static_if_elif: 	_if_elif{ "#" , global_block}
+
+
+if_statement: _if_statement{ void, block}
+static_if_elif: _if_statement{ COMPILE_TIME, block}
+global_static_if_elif: _if_statement{ COMPILE_TIME, global_block}
+
+
+_if_statement{mods, blk}: mods "if" exprn blk _after_if{mods,blk}?
+elif_statement{mods, blk}: mods "elif" exprn blk _after_if{mods, blk}?
+else_statement{mods, blk}: mods "else" blk
+
+
+_after_if{mods, blk}: else_statement{mods, blk}
+		| elif_statement{mods, blk}
+
+
+
+
+
+_while_loop{mod, blk}: mod "while" exprn blk
+while_loop: 				_while_loop{void, block}
+static_while_loop: 			_while_loop{COMPILE_TIME, block}
+global_static_while_loop: 	_while_loop{COMPILE_TIME, global_block}
+
+
+
+_for_loop{ mod, blk} : mod "for" for_init ";" for_cond";" for_incr blk
+for_loop: 				_for_loop{ void, block}
+static_for_loop: 		_for_loop{ COMPILE_TIME, block}
+global_static_for_loop: _for_loop{ COMPILE_TIME, global_block}
+
+
+
+for_init: for_statement
+for_cond: [exprn]
+for_incr: for_statement
+?for_statement: decl
+				| decl_init
+				| assign
+				|
+
+for_each_loop: "fore" decl "in" exprn block
+
+?mixin: "mixin" "(" exprn ")"
 
 rtn: "return" [exprn]
 
-class_decl: "class" sym "{" class_content "}"
-
-class_content: class_content_item*
-
-?class_content_item: decl_init
-				| decl
-				| func
 
 
-
-_MULTILINE_STRING_INNER: /(.|\n)*?/
-_MULTILINE_STRING_ESC_INNER: _MULTILINE_STRING_INNER /(?<!\\)(\\\\)*?/
-
-ESCAPED_MULTILINE_STRING : "\"\"\"" _MULTILINE_STRING_ESC_INNER "\"\"\""
-
-
-if_elif: "if"  exprn  block ("elif"  exprn  block)* [ "else"  block  ]
-
-func: "func" sym "(" decl_arg_list ")" ":" type block
-
-decl_arg_list: [ sym ":" type ("," sym ":" type)*]
-// default_arg_list
-call_arg_list: [ exprn ("," exprn )*]
-
-func_call: sym "(" call_arg_list ")"
-
-decl: sym ":" type
-
-decl_init: sym ":" type "=" exprn
-
-assign: sym "=" exprn
-
-?mixin: "mixin" "(" exprn ")"
 
 
 ?exprn: or_exprn
@@ -101,17 +167,44 @@ assign: sym "=" exprn
 		| product "*" item -> mult
 		| product "/" item -> div
 
+
 ?item: SIGNED_INT -> integer
 		| SIGNED_FLOAT -> floating_pt
-		| sym
 		| "+" item
 		| "-" item -> neg
 		| "(" exprn ")"
 		| ESCAPED_MULTILINE_STRING -> multiline_string
 		| ESCAPED_STRING -> string
-		| func_call
-		| mixin -> mixin_exprn
+		| lvalue
 
 
+?lvalue: dot_exprn
+
+?dot_exprn: lvalue_item
+			| dot_exprn "." lvalue_item
+
+
+
+?lvalue_item: sym
+			| mixin -> mixin_exprn
+			| func_call
+
+
+// ADDRS : "&"+
+
+type : type_modifier* CNAME
+
+
+?type_modifier 	: AMP+ -> address_of
+				| COMPILE_TIME -> compile_time
+
+COMPILE_TIME : "#"
+DEREF: "*"
+AMP : "&"
 sym: CNAME
+
+
+_MULTILINE_STRING_INNER: /(.|\n)*?/
+_MULTILINE_STRING_ESC_INNER: _MULTILINE_STRING_INNER /(?<!\\)(\\\\)*?/
+ESCAPED_MULTILINE_STRING : "\"\"\"" _MULTILINE_STRING_ESC_INNER "\"\"\""
 

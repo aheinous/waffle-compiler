@@ -3,6 +3,8 @@ class Block(list):
         super().__init__(*vargs, **kwargs)
         self.persistent_scope = False
 
+
+
     @property
     def pos(self):
         if not self:
@@ -12,4 +14,8 @@ class Block(list):
     @property
     def uid(self):
         return self.pos
+
+
+    def addChildScope(self, newScope):
+        self[0]._addChildScope(newScope)
 

@@ -1,0 +1,107 @@
+Running File: test_code/mixin_fail.lang
+program
+  func
+    sym fuck
+    decl_arg_list
+      sym       s
+      type      string
+    type        int
+    block
+      assign
+        sym     s
+        add
+          sym   s
+          string        "*3"
+      rtn
+      mixin_statement
+        sym     s
+  func
+    sym main
+    decl_arg_list
+    type        int
+    block
+      func_call
+        sym     fuck
+        call_arg_list
+          string        "3"
+      rtn
+        integer 0
+
+root
+    (InitFunc test_code/mixin_fail.lang:1:2 -> 4:3)
+    func_blk
+        (Push test_code/mixin_fail.lang:2:6 -> 2:7)
+        (Push test_code/mixin_fail.lang:2:10 -> 2:11)
+        (Pushi test_code/mixin_fail.lang:2:14 -> 2:18)
+        (BinOp test_code/mixin_fail.lang:2:10 -> 2:18)
+        (Assign test_code/mixin_fail.lang:2:6 -> 2:18)
+        (Rtn test_code/mixin_fail.lang:3:6 -> 3:12)
+        (MixinStatements test_code/mixin_fail.lang:3:13 -> 3:21)
+        (Rtn test_code/mixin_fail.lang:1:2 -> 4:3)
+    (InitFunc test_code/mixin_fail.lang:7:2 -> 10:15)
+    func_blk
+        (Call test_code/mixin_fail.lang:9:6 -> 9:15)
+        (Rtn test_code/mixin_fail.lang:10:6 -> 10:14)
+name: root, uid: test_code/mixin_fail.lang:1:2 -> 4:3, instance_uid: None
+PERSISTS
+Values:{}
+symbols:
+
+
+    name: func_blk, uid: test_code/mixin_fail.lang:2:6 -> 2:7, instance_uid: None
+    Values:{}
+    symbols:
+
+
+    name: func_blk, uid: test_code/mixin_fail.lang:9:6 -> 9:15, instance_uid: None
+    Values:{}
+    symbols:
+
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.6/runpy.py", line 193, in _run_module_as_main
+    "__main__", mod_spec)
+  File "/usr/lib/python3.6/runpy.py", line 85, in _run_code
+    exec(code, run_globals)
+  File "/home/alex/.vscode/extensions/ms-python.python-2020.12.424452561/pythonFiles/lib/python/debugpy/__main__.py", line 45, in <module>
+    cli.main()
+  File "/home/alex/.vscode/extensions/ms-python.python-2020.12.424452561/pythonFiles/lib/python/debugpy/../debugpy/server/cli.py", line 444, in main
+    run()
+  File "/home/alex/.vscode/extensions/ms-python.python-2020.12.424452561/pythonFiles/lib/python/debugpy/../debugpy/server/cli.py", line 285, in run_file
+    runpy.run_path(target_as_str, run_name=compat.force_str("__main__"))
+  File "/usr/lib/python3.6/runpy.py", line 263, in run_path
+    pkg_name=pkg_name, script_name=fname)
+  File "/usr/lib/python3.6/runpy.py", line 96, in _run_module_code
+    mod_name, mod_spec, pkg_name, script_name)
+  File "/usr/lib/python3.6/runpy.py", line 85, in _run_code
+    exec(code, run_globals)
+  File "compiler.py", line 255, in <module>
+    main()
+  File "compiler.py", line 219, in main
+    compiler.compile_file('test_code/mixin_fail.lang')
+  File "compiler.py", line 199, in compile_file
+    self._compile_file()
+  File "compiler.py", line 187, in _compile_file
+    code = self.tree_compiler.compile_tree(instrn_tree)
+  File "/home/alex/Projects/compiler/instruction_tree_compiler.py", line 40, in compile_tree
+    self.visit_blk(instrn_blk)
+  File "/home/alex/Projects/compiler/instruction_tree_visitor.py", line 10, in visit_blk
+    self.visit_instrn(instrn)
+  File "/home/alex/Projects/compiler/instruction_tree_visitor.py", line 20, in visit_instrn
+    return method(instrn)
+  File "/home/alex/Projects/compiler/instruction_tree_compiler.py", line 148, in visit_InitFunc
+    self.visit_blk(func.instrns)
+  File "/home/alex/Projects/compiler/instruction_tree_visitor.py", line 10, in visit_blk
+    self.visit_instrn(instrn)
+  File "/home/alex/Projects/compiler/instruction_tree_visitor.py", line 20, in visit_instrn
+    return method(instrn)
+  File "/home/alex/Projects/compiler/instruction_tree_compiler.py", line 171, in visit_Rtn
+    self.call_stack.checkRtnTypeOkay(rtnVal, rtn.pos)
+  File "/home/alex/Projects/compiler/call_stack.py", line 24, in checkRtnTypeOkay
+    rtnVal.checkCanAssignTo(self.peek().rtn_type, pos)
+  File "/home/alex/Projects/compiler/typed_data.py", line 11, in checkCanAssignTo
+    typeSystem.check_assign_okay(self.type, type_, pos)
+  File "/home/alex/Projects/compiler/type_system.py", line 198, in check_assign_okay
+    raise TypeMismatchException(l_type, r_type, pos)
+exceptions.TypeMismatchException: Type mismatch: Void Int
+At test_code/mixin_fail.lang:3:6 -> 3:12

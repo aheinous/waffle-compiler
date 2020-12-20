@@ -8,7 +8,11 @@ class Tester(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.compiler = Compiler()
+        # cls.compiler = Compiler()
+        pass
+
+    def setUp(self):
+        self.compiler = Compiler()
 
 
     def runCode_getLocals(self,fname, src):

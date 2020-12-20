@@ -1,17 +1,17 @@
 func gen_code(s:string): string {
-    return "100 * " + s
+   return "100 * " + s;
 }
 
 
 
 
 func main():int {
-    a:int = 10
-    b:int = mixin("5" + "7")
-    c:int = mixin("5+a")
-    d:int = mixin(gen_code("5"))
-    mixin("e:int = 10")
-    f:int = 5 + mixin("2") + a
-    plocal
-    return 0
+  a:int = 10;
+   b:int = mixin("5" + "7");
+   c:int = mixin("5+a");
+   d:int = mixin(gen_code("5"));
+    mixin("e:int = 10");
+   f:int = 5 + mixin("2") + a;
+    plocal;
+    return 0;
 }

@@ -1,17 +1,17 @@
           func main():int {
-            a:int
-            a = 5
-            b:int = 5
-            a = -b
-            x:int = 3 * 10 + 5 * 100 + 3 * 1000 / 3 - 1
-            d:int = (12 - 2) * 10 / 5
-            e:int = 3 > 2 + 2 // 0
-            f:int = 10 >= 10
-            g:int = 10 > 10
-            h:int = 1 and 1
-            i:int = 1 and 0
-            j:int = 0 or 0
-            k:int = 0 or 1
-            plocal
-            return 0
+            a:int;
+            a = 5;
+            b:int = 5;
+            a = -b;
+            x:int = 3 * 10 + 5 * 100 + 3 * 1000 / 3 - 1;
+            d:int = (12 - 2) * 10 / 5;
+            e:int = 3 > 2 + 2; // 0
+            f:int = 10 >= 10;
+            g:int = 10 > 10;
+            h:int = 1 and 1;
+            i:int = 1 and 0;
+            j:int = 0 or 0;
+            k:int = 0 or 1;
+            plocal;
+            return 0;
           }

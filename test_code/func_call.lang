@@ -1,6 +1,6 @@
         func foo (a:int, b:int): int {
-            b = b*2
-            return 10*a + b
+            b = b*2;
+            return 10*a + b;
         }
 
         func no_rtn_statement() : void {
@@ -8,9 +8,9 @@
         }
 
           func main():int {
-              x:int = foo(5,4)
-              no_rtn_statement()
-              foo(10,20)
-              plocal
-              return 0
+              x:int = foo(5,4);
+              no_rtn_statement();
+              foo(10,20);
+              plocal;
+              return 0;
           }

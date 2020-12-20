@@ -1,0 +1,22 @@
+func main() : int {
+
+
+    x:int = 0;
+    z:int = 2;
+
+
+
+    if 0 {
+        x = x+ 1020;
+    } elif 4 {
+        z = z + 100;
+    }
+
+    else {
+        x = x + 1003;
+    }
+
+    plocal;
+
+    return 0;
+}

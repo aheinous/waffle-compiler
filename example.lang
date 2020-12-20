@@ -1,0 +1,147 @@
+decorator make_special (cls:#class) {
+	# for methName in cls.getMethodNames() {
+		method = cls.methods[methodName]
+
+		func wrapped (*vargs) : method.returnType {
+			# for var in vargs {
+				print(#var.name + ": " + #var.type + " + " var.value)
+			}
+			method(expand(vargs))
+		}
+	}
+}
+
+
+iter iteratorExample(n:u8): u8 {
+	for x in 0..n {
+		yield x
+		yield 2*x
+	}
+}
+
+
+func thing () : {
+	x:i8 = 0b0101_0011
+	y:i64 = 0c01374
+	z:f32 = 0.01e10
+	w:u16 = 0x1234_4312
+
+	p:&void = null
+
+	foreign(cpp)```
+
+	std::cout << "something " << ${x} << std::endl;
+
+	SOME_C_MACRO(y);
+
+	${p} = new CppThing();
+
+	```
+}
+
+
+func genCaseICode(i:int): string{
+	/// ...
+}
+
+@make_special
+class Foo {
+
+	someField:int[32]
+
+	someOtherField: u8[4] = {1, 2, 3, 4}
+
+
+	func init() : {
+		// ...
+	}
+
+	func thing(x:i32, y:i64, z:u16): {
+		#if x.isStatic() {
+			switch y {
+				# for i:int = 0 ; i < x ; i+=2 {
+					case i {
+						mixin(genCaseICode(i))
+						fallthrough
+					}
+					case i+1 {
+						mixin(genCaseICode(i))
+					}
+				}
+			}
+		}
+		#else {
+			// ...
+		}
+	}
+
+}
+
+
+class (#size:int) : ParentClass(#someTemplateArg)
+				  : someInterface()
+{
+	method init(f:float){}
+}
+
+
+class String (){
+
+
+
+	method resizeable():bool{
+		return size == 0
+	}
+
+	# if (resizable()) {
+		buffer:vector(#char)
+	}
+	# else {
+		buffer:char[size]
+	}
+
+	method init(size:u64 = 256) : {
+		# if size.isCompileTime()
+	}
+}
+
+
+
+func stringStuff(): {
+
+	resizeableStr:String = String(128)
+	resizeableStr_defaultIntitalSize:String = String()
+
+	fixedSize:String(#80) = String(#80)
+	fixedSize_autoType := String(#80)
+
+
+	str += format("%0.2d\n")
+
+
+}
+
+
+
+class Stuff {
+	method init(x:int, y:int, z:int){
+
+	}
+}
+
+
+func useStuff() {
+	s: Stuff(_,#20,_) =  Stuff(10, #20, 30)
+	s2: Stuff(y=20) =  Stuff(10, #20, 30)
+}
+
+
+
+func main(): int {
+	f:Foo = Foo()
+	f.thing( #4, 0, 3)
+
+	#print("compiling main")
+
+	return 0
+}

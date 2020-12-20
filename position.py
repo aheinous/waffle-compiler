@@ -10,6 +10,7 @@ class Position(_Position):
                                             self.end_ln,
                                             self.end_col
                                             )
+
     def __repr__(self):
         return self.__str__()
 

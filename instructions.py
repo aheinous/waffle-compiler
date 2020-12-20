@@ -14,7 +14,7 @@ class Func:
 
     @property
     def rtn_type(self):
-        return self.typed_sym.type
+        return self.typed_sym.type.rtnType
 
 
 
@@ -136,15 +136,28 @@ class MixinStatements(Instrn):
 
 class ClassDecl(Instrn):
     def __init__(   self, t_sym:TSym,
+                    # preUsrInit:Block,
                     contents:Block,
-                    t_init_func:RValue,
                     pos:Position):
         super().__init__(pos)
         self.t_sym = t_sym
+        # self.preUsrInit = preUsrInit
         contents.persistent_scope = True
         self.contents = contents
-        self.t_init_func = t_init_func
+        # self.t_init_func = t_init_func
+        # if contents:
         self._add_child_scope('contents', contents)
+        # contents.addChildScope(preUsrInit)
+        # else:
+        #     self._add_child_scope('preUsrInit', preUsrInit)
+
+    @property
+    def uid(self):
+        return self.contents.uid
+
+    @property
+    def type(self):
+        return self.t_sym.type
 
 class ObjectInit(Instrn):
     def __init__(self, type_, pos:Position):

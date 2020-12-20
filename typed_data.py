@@ -1,25 +1,26 @@
+from type_system import typeSystem
 import type_system as type_sys
 import context
 
 class _Typed:
     @property
     def type_repr(self):
-        return type_sys.type_cpp_repr(self.type)
+        return typeSystem.type_cpp_repr(self.type)
 
     def checkCanAssignTo(self, type_,  pos):
-        type_sys.check_assign_okay(self.type, type_, pos)
+        typeSystem.check_assign_okay(self.type, type_, pos)
 
     def checkAssignOkay(self, other, pos):
-        type_sys.check_assign_okay(self.type, other.type, pos)
+        typeSystem.check_assign_okay(self.type, other.type, pos)
 
     def opResType(self, op, other, pos):
-        return type_sys.op_res_type(op, self.type, other.type, pos)
+        return typeSystem.op_res_type(op, self.type, other.type, pos)
 
 def typeFromString(string, pos):
-    return type_sys.make_type(string, pos)
+    return typeSystem.make_type(string, pos)
 
-def regNewType(typeName, uid):
-    return type_sys.reg_new_type(typeName, uid)
+def regNewType(strRep, type_):
+    return typeSystem.reg_new_type(strRep, type_)
 
 
 class RValue(_Typed):
@@ -35,23 +36,23 @@ class RValue(_Typed):
 
     @property
     def repr(self):
-        return type_sys.value_cpp_repr(self._value, self.type)
+        return typeSystem.value_cpp_repr(self._value, self.type)
 
     @staticmethod
     def fromString(string, type_, pos):
-        return RValue(type_sys.make_value(string, type_, pos), type_)
+        return RValue(typeSystem.make_value(string, type_, pos), type_)
 
     def binOpRes(self, op, other, ctx, pos):
         other = other.rvalue(ctx, pos)
-        resValue = type_sys.op_res( op,
+        resValue = typeSystem.op_res( op,
                                     self._value, self.type,
                                     other._value, other.type, pos)
-        resType = type_sys.op_res_type(op, self.type, other.type, pos)
+        resType = typeSystem.op_res_type(op, self.type, other.type, pos)
         return RValue(resValue, resType)
 
     def unaryOpRes(self, op, ctx, pos):
-        resValue = type_sys.unary_op_res(op, self.value(), self.type, pos)
-        resType = type_sys.unary_op_res_type(op, self.type, pos)
+        resValue = typeSystem.unary_op_res(op, self.value(), self.type, pos)
+        resType = typeSystem.unary_op_res_type(op, self.type, pos)
         return RValue(resValue, resType)
 
     def value(self, ctx=None, pos=None):
@@ -90,7 +91,7 @@ class LValue(_Typed):
 
     def assign(self, t_value, ctx, pos):
         rvalue = t_value.rvalue(ctx, pos)
-        newValue_untyped = type_sys.assign(self.type, rvalue.type, rvalue.value(), pos)
+        newValue_untyped = typeSystem.assign(self.type, rvalue.type, rvalue.value(), pos)
         rvalue = RValue(newValue_untyped, self.type)
         ctx.assign_value_at(self.scope_uid, self.sym, rvalue, pos)
 
@@ -140,6 +141,6 @@ class TFrag(_Typed):
 
 
     def unaryOpRes(self, op, ctx, pos):
-        resType = type_sys.unary_op_res_type(op, self.type, pos)
-        resRepr = '{}{}'.format(type_sys.op_cpp_repr(op), self.fragment)
+        resType = typeSystem.unary_op_res_type(op, self.type, pos)
+        resRepr = '{}{}'.format(typeSystem.op_cpp_repr(op), self.fragment)
         return TFrag(resRepr, resType)

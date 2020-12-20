@@ -1,7 +1,11 @@
  func fuck(s:string):int {
-     s = s + "*3"
-     return mixin(s)
+     s = s + "*3" ;
+     return mixin(s) ;
  }
 
 
- func main():int { return 0}
+ func main():int {
+
+     fuck("3");
+     return 0;
+    }

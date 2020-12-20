@@ -141,7 +141,7 @@ class InstrnTreeCompiler(InstrnTreeVisitor):
                 ('{} {}'.format(a.type_repr, a.string)
                 for a in func.args)
                 )
-            self._add_code('{} {}({}){{'.format(func.typed_sym.type_repr,
+            self._add_code('{} {}({}){{'.format(func.typed_sym.type.rtnType.repr,
                                                 func.typed_sym.sym,
                                                 arg_list))
             self._num_indents += 1
@@ -159,7 +159,7 @@ class InstrnTreeCompiler(InstrnTreeVisitor):
             arg_code += (', '  if arg_code else '') + self.vm.comp_pop().repr
 
         call_code = '{}({})'.format(call.func_sym, arg_code)
-        type_ = self.ctx.read(call.func_sym, TYPE, call.pos)
+        type_ = self.ctx.read(call.func_sym, TYPE, call.pos).rtnType
         self.vm.comp_push(TFrag(call_code, type_))
 
 
@@ -184,7 +184,7 @@ class InstrnTreeCompiler(InstrnTreeVisitor):
     def visit_MixinStatements(self, mixin):
         self.compiler.run_exprn_tree(mixin.statements, mixin.pos)
         s = self.vm.run_pop()
-        s = s.value(self.ctx, mixin.pos)
+        s = s.value(self.ctx, mixin.pos) +';'
         sub_tree = self.compiler.compile_statements(s, mixin.pos)
         InstrnTreePrinter().start(sub_tree)
         self.visit_blk(sub_tree)

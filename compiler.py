@@ -1,4 +1,8 @@
 #! /usr/bin/python3
+
+import subprocess
+import sys
+import unittest
 from compile_cpp import compile_cpp
 from position import Position
 from exceptions import LarkErrorWithPos
@@ -17,10 +21,12 @@ from scope_maker import ScopeMaker
 # TODO cmd line arg, propagate thru program..
 TAB_SIZE = 4
 
+# FIXME something is holding on to state somehow
+
 class Compiler:
     def __init__(self):
         self._reset()
-        self.parser = Lark.open('syntax.lark', parser='lalr', propagate_positions=True)
+        self.parser = Lark.open('syntax.lark', propagate_positions=True)
         self.exprn_parser = Lark.open('syntax.lark', parser='lalr', propagate_positions=True, start='exprn')
         self.instruction_generator = InstructionGenerator()
         self.scope_maker = ScopeMaker()
@@ -107,32 +113,32 @@ class Compiler:
         ast = self.parser.parse(self.src)
 
 
-        # print(ast.pretty())
+        print(ast.pretty())
         instrn_tree = self.instruction_generator.gen_instrn_tree(ast, self.src_fname)
 
-        # itp = InstrnTreePrinter()
-        # itp.start(instrn_tree)
+        itp = InstrnTreePrinter()
+        itp.start(instrn_tree)
 
         scopes = self.scope_maker.make_scopes(instrn_tree)
         self.context.add_new_scopes(scopes)
 
-        # scope_printer = ScopeTreePrinter()
-        # scope_printer.visit(scopes[0])
+        scope_printer = ScopeTreePrinter()
+        scope_printer.visit(scopes[0])
 
         with self.context.enter_scope(instrn_tree.uid):
             self.tree_runner.run(instrn_tree)
-            # scope_printer.visit(scopes[0])
+            scope_printer.visit(scopes[0])
             self.run_exprn_code('main()', Position('nowhere', 0,0,0,0))
 
     def run_file(self, fname, src=None):
-        # print('~'*90)
+        print('~'*90)
         print('Running File: ' + fname)
         self._set_file(fname, src)
         try:
             self._run_file()
         except LarkError as e:
             self._on_error(e)
-        # print('~'*90)
+        print('~'*90)
 
     def compile_statements(self, src,  pos):
         src = src.expandtabs(TAB_SIZE)
@@ -165,21 +171,21 @@ class Compiler:
     def _compile_file(self):
         ast = self.parser.parse(self.src)
 
-        # print(ast.pretty())
+        print(ast.pretty())
         instrn_tree = self.instruction_generator.gen_instrn_tree(ast, self.src_fname)
 
-        # itp = InstrnTreePrinter()
-        # itp.start(instrn_tree)
+        itp = InstrnTreePrinter()
+        itp.start(instrn_tree)
 
         scopes = self.scope_maker.make_scopes(instrn_tree)
         self.context.add_new_scopes(scopes)
 
-        # scope_printer = ScopeTreePrinter()
-        # scope_printer.visit(scopes[0])
+        scope_printer = ScopeTreePrinter()
+        scope_printer.visit(scopes[0])
 
         with self.context.enter_scope(instrn_tree.uid):
             code = self.tree_compiler.compile_tree(instrn_tree)
-            # print('\n'.join(code))
+            print('\n'.join(code))
             compile_cpp(code)
 
 
@@ -200,26 +206,36 @@ class Compiler:
 
 def main():
     compiler = Compiler()
-    # compiler.run_file('mixin.lang')
-    # compiler.run_file('operators.lang')
+    compiler.run_file('test_code/big.lang')
+    # compiler.compile_file('test_code/operators.lang')
 
-    # compiler.run_file('complete.lang')
-    # compiler.run_file('main.lang')
-    # compiler.run_file('string.lang')
-    # compiler.run_file('classes.lang')
+def grammer_test():
 
-    # compiler.run_file('test_code/mixin.lang')
+    parser = Lark.open('syntax.lark', parser='lalr', propagate_positions=True)
 
-    print('=============================================================='*2)
 
-    compiler.compile_file('test_code/mixin_fail.lang')
-    # compiler.compile_file('fakefile', src)
-
-    # # compiler.compile_file('complete.lang')
-    # # compiler.compile_file('main.lang')
-
+    for fname in (
+                    'test_code/basic.lang',
+                    'test_code/big.lang',
+                    'test_code/classes.lang',
+                    'test_code/func_call.lang',
+                    'test_code/mixin_fail.lang',
+                    'test_code/mixin.lang',
+                    'test_code/operators.lang',
+                    'test_code/grammer_test.lang',
+                    ):
+        with open(fname) as src_file:
+            src = ''.join(src_file.readlines()).expandtabs(TAB_SIZE)
+        print('------- ' + fname + '-------------')
+        tree = parser.parse(src)
+        print(tree.pretty())
 
 
 
 if __name__ == '__main__':
-    main()
+
+    # main()
+    rtncode = subprocess.run([sys.executable, '-m', 'unittest', 'discover']).returncode
+    # print(rtncode)
+    # if not rtncode:
+        # grammer_test()
