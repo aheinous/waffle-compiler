@@ -120,17 +120,17 @@ class Tester(unittest.TestCase):
 
 
 
-    def test_big(self):
-        self.run_tests('big.lang', {
-            ('a', '-5', 'int'),
-            ('b', '5', 'int'),
-            ('c', '11', 'int'),
-            ('d', '20', 'int'),
-            ('e', '220', 'int'),
-            ('f', '7.1', 'float'),
-            ('h', '2', 'float'),
-            ('i', '120', 'int'),
-        })
+    # def test_big(self):
+    #     self.run_tests('big.lang', {
+    #         ('a', '-5', 'int'),
+    #         ('b', '5', 'int'),
+    #         ('c', '11', 'int'),
+    #         ('d', '20', 'int'),
+    #         ('e', '220', 'int'),
+    #         ('f', '7.1', 'float'),
+    #         ('h', '2', 'float'),
+    #         ('i', '120', 'int'),
+    #     })
 
     def test_mixin(self):
         self.run_tests('mixin.lang', {

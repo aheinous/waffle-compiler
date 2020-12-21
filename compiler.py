@@ -206,8 +206,9 @@ class Compiler:
 
 def main():
     compiler = Compiler()
-    compiler.run_file('test_code/big.lang')
-    # compiler.compile_file('test_code/operators.lang')
+    # compiler.run_file('test_code/mixin.lang')
+    # compiler.compile_file('test_code/func_call.lang')
+    compiler.compile_file('test_code/basic.lang')
 
 def grammer_test():
 
@@ -215,13 +216,13 @@ def grammer_test():
 
 
     for fname in (
-                    'test_code/basic.lang',
-                    'test_code/big.lang',
-                    'test_code/classes.lang',
-                    'test_code/func_call.lang',
-                    'test_code/mixin_fail.lang',
-                    'test_code/mixin.lang',
-                    'test_code/operators.lang',
+                    # 'test_code/basic.lang',
+                    # # 'test_code/big.lang',
+                    # 'test_code/classes.lang',
+                    # 'test_code/func_call.lang',
+                    # 'test_code/mixin_fail.lang',
+                    # 'test_code/mixin.lang',
+                    # 'test_code/operators.lang',
                     'test_code/grammer_test.lang',
                     ):
         with open(fname) as src_file:
@@ -233,9 +234,9 @@ def grammer_test():
 
 
 if __name__ == '__main__':
-
-    # main()
-    rtncode = subprocess.run([sys.executable, '-m', 'unittest', 'discover']).returncode
+    # grammer_test()
+    main()
+    # rtncode = subprocess.run([sys.executable, '-m', 'unittest', 'discover']).returncode
     # print(rtncode)
     # if not rtncode:
         # grammer_test()

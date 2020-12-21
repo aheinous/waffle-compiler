@@ -1,4 +1,4 @@
-          func main():int {
+          fn main:int() {
             a:int;
             a = 5;
             b:int = 5;

@@ -1,9 +1,11 @@
 
-func voidrtn() : void {
+
+
+static fn voidrtn: void (){
 
 }
 
-func noreturntype() : {
+fn noreturntype : void ()  {
 
 
 }
@@ -16,7 +18,7 @@ func noreturntype() : {
 # else {
 	x:int = 3;
 
-	func thing():{
+	fn thing:(){
 		#if whatever() {
 
 		}
@@ -26,7 +28,7 @@ func noreturntype() : {
 
 
 class Stuff {
-	//method init(x:int, y:int, z:int){
+	//fn init(x:int, y:int, z:int){
 
 	//}
 
@@ -35,18 +37,18 @@ class Stuff {
 
 
 
-	method thing():{
+	fn thing:(){
 		int:x;
 	}
 
-	vmethod other() :{
+	fn other:() {
 
 	}
 }
 
 
 
-func classTest():{
+fn classTest:(){
 	s:Stuff =  Stuff();
 	s.x.y = 100;
 	//x = 5 + s.z.y;
@@ -63,12 +65,12 @@ func classTest():{
 
 
 
-/*
+
 # while(x) {
 	y:int = 3;
 }
 
-func main():int {
+fn main:int() {
 
 	x:#int;
 	y:#int = 10;
@@ -79,18 +81,76 @@ func main():int {
 }
 
 
-func main():int {
+fn main:int() {
 
 	# while(100) {
 
 	}
 
-	for i:int = foo(); i<someBS() ; i = i+1 {
+
+
+}
+
+x :float  = 5;
+
+fn a:int(){}
+
+fn b:void(){}
+
+fn c:(){
+
+
+	for x: in someIter() {
 
 	}
 
-	fore x:int in gimmieShit() {
+
+	for x:u8 in someIter() {
 
 	}
 
-}*/
+
+	for x:u8 in someInit() .. 1000  .. otherThing{
+
+	}
+
+
+}
+
+
+it iteratorExample: u8 (n:u8) {
+	for x:int in 0..n {
+		yield x;
+		yield 2*x;
+	}
+}
+
+
+
+
+
+x: u32 = 0b1101_0010;
+x:u64 = 0xbeef_DEAD;
+//x:u32 = a;
+x:u8 = 0o777;
+x:int = 102_321_987;
+
+
+
+arr:int[];
+arr:int[4];
+arr:int[] = :int[4]{};
+arr:int[] = :{1,2,3,4};
+
+dec make_special: (cls:#class) {
+	# for methName: in cls.getMethodNames() {
+		//method = cls.methods[methodName]
+
+		fn wrapped: #(method.returnType) (VARGS) {
+			# for var: in VARGS {
+				print(#(var.name + ": " + var.type + " + ") + var.value);
+			}
+			method(expand(VARGS));
+		}
+	}
+}

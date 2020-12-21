@@ -1,4 +1,4 @@
-func main() : int {
+fn main() : int {
 
 
     x:int = 0;

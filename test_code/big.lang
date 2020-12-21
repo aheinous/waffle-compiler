@@ -1,5 +1,5 @@
 
-func foo():float {
+fn foo():float {
     t:float = 4.0;
     t = t + 3.1;
     return t;
@@ -9,7 +9,7 @@ func foo():float {
 
 
 
-func fact(n:int):int {
+fn fact(n:int):int {
     res:int = 1;
 
     while n {
@@ -23,19 +23,19 @@ func fact(n:int):int {
 
 
 
-func sym_hide(): void {
+fn sym_hide(): void {
     a:string = "no error";
 }
 
 
 
-func noreturn(): void {
+fn noreturn(): void {
     x:int = 44;
 }
 
 
 
-func if_scope_test() : void {
+fn if_scope_test() : void {
     a:int = 1;
     b:int = 1;
     c:int = 1;
@@ -58,7 +58,7 @@ func if_scope_test() : void {
 
 }
 
-func main() : int {
+fn main() : int {
 
     a:int;
 

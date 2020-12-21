@@ -8,7 +8,7 @@ class Foo {
 	z:int = 3;
 
 
-	func method():void{
+	fn method:void(){
 
 	}
 }
@@ -17,7 +17,7 @@ class Foo {
 //class Bar {}
 
 
-func main():int{
+fn main:int(){
 	my_instance:Foo = Foo();
 //	my_instance.x = 100
 

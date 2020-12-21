@@ -2,11 +2,11 @@ decorator make_special (cls:#class) {
 	# for methName in cls.getMethodNames() {
 		method = cls.methods[methodName]
 
-		func wrapped (*vargs) : method.returnType {
-			# for var in vargs {
+		fn wrapped (VARGS) : method.returnType {
+			# for var in VARGS {
 				print(#var.name + ": " + #var.type + " + " var.value)
 			}
-			method(expand(vargs))
+			method(expand(VARGS))
 		}
 	}
 }
@@ -20,7 +20,7 @@ iter iteratorExample(n:u8): u8 {
 }
 
 
-func thing () : {
+fn thing () : {
 	x:i8 = 0b0101_0011
 	y:i64 = 0c01374
 	z:f32 = 0.01e10
@@ -40,7 +40,7 @@ func thing () : {
 }
 
 
-func genCaseICode(i:int): string{
+fn genCaseICode(i:int): string{
 	/// ...
 }
 
@@ -52,11 +52,11 @@ class Foo {
 	someOtherField: u8[4] = {1, 2, 3, 4}
 
 
-	func init() : {
+	fn init() : {
 		// ...
 	}
 
-	func thing(x:i32, y:i64, z:u16): {
+	fn thing(x:i32, y:i64, z:u16): {
 		#if x.isStatic() {
 			switch y {
 				# for i:int = 0 ; i < x ; i+=2 {
@@ -81,7 +81,9 @@ class Foo {
 class (#size:int) : ParentClass(#someTemplateArg)
 				  : someInterface()
 {
-	method init(f:float){}
+	static
+	virtual
+	fn init(f:float){}
 }
 
 
@@ -107,7 +109,7 @@ class String (){
 
 
 
-func stringStuff(): {
+fn stringStuff(): {
 
 	resizeableStr:String = String(128)
 	resizeableStr_defaultIntitalSize:String = String()
@@ -130,14 +132,14 @@ class Stuff {
 }
 
 
-func useStuff() {
+fn useStuff() {
 	s: Stuff(_,#20,_) =  Stuff(10, #20, 30)
 	s2: Stuff(y=20) =  Stuff(10, #20, 30)
 }
 
 
 
-func main(): int {
+fn main(): int {
 	f:Foo = Foo()
 	f.thing( #4, 0, 3)
 

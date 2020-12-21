@@ -1,13 +1,13 @@
-        func foo (a:int, b:int): int {
+        fn foo : int  (a:int, b:int){
             b = b*2;
             return 10*a + b;
         }
 
-        func no_rtn_statement() : void {
+        fn no_rtn_statement : void () {
 
         }
 
-          func main():int {
+          fn main :int (){
               x:int = foo(5,4);
               no_rtn_statement();
               foo(10,20);

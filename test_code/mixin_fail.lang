@@ -1,10 +1,10 @@
- func fuck(s:string):int {
+ fn  fuck:int(s:string) {
      s = s + "*3" ;
      return mixin(s) ;
  }
 
 
- func main():int {
+ fn  main:int() {
 
      fuck("3");
      return 0;

@@ -270,23 +270,35 @@ class InstructionGenerator(Interpreter):
 
     @add_position_arg
     def func(self, tree, pos):
+
+        modifier_list = tree.children[0] # not implemented yet
+        func_type = tree.children[1]
+        sym = tree.children[2]
+        rtn_type = tree.children[3]
+        treeArgList = tree.children[4]
+        block = tree.children[5]
+
+        func_type = func_type.data # not implemented yet
+
         #  get args
-        treeArgList = tree.children[1].children
+        treeArgList = treeArgList.children
         argTSyms = []
         argTypes = []
-        for i in range(0, len(treeArgList), 2):
-            argTSyms.append(_get_sym_and_type(treeArgList[i:i+2], pos))
-            argTypes.append(_get_type(treeArgList[i+1], pos))
+        for item in treeArgList:
+            argTSyms.append(_get_sym_and_type(item.children, pos))
+            argTypes.append(_get_type(item.children[1], pos))
+
 
         # get sym and rtn type
-        sym = _get_sym(tree.children[0])
-        rtn_type = _get_type(tree.children[2], pos)
+        sym = _get_sym(sym)
+        # rtn_type = _get_type(tree.children[2], pos)
+        rtn_type = _get_type(rtn_type, pos)
 
         # init type
         type_ = type_sys.Function(argTypes, rtn_type)
 
         # get block instructions
-        block = tree.children[3]
+        # block = tree.children[3]
         block = self._visit_get_instrs(block)
 
         # make sure we end with a Rtn

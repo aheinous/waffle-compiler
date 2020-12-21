@@ -1,11 +1,11 @@
-func gen_code(s:string): string {
+fn gen_code: string(s:string) {
    return "100 * " + s;
 }
 
 
 
 
-func main():int {
+fn main:int() {
   a:int = 10;
    b:int = mixin("5" + "7");
    c:int = mixin("5+a");

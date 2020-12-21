@@ -156,6 +156,7 @@ class _TypeSystem:
 
     def value_cpp_repr(self, value, type_) :
         s = match(type_,
+            Int,  lambda _ : str(int(value)),
             _Num, lambda _ : str(value),
             String, lambda _:'"' + _encode_escapes(value) + '"'
         )

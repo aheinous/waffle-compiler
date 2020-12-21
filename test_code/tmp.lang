@@ -1,4 +1,4 @@
-func main():int {
+fn main():int {
     while 0 {
         i:int = 0;
         if a {

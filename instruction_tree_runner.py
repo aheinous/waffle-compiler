@@ -154,5 +154,5 @@ class InstrnTreeRunner(InstrnTreeVisitor):
         localvar = sorted(localvar.items())
         print('vvvvv PLocal vvvvv')
         for sym, val in localvar:
-            print('{} ; {} ; {}'.format(sym, val.value(), val.type_repr))
+            print('{} ; {} ; {}'.format(sym, val.repr, val.type_repr))
         print('^^^^^ PLocal ^^^^^')

@@ -1,7 +1,7 @@
 import subprocess
 import os
 
-def compile_cpp(code:list, exe_fname='build/a.out', src_fname='build/tmp.cpp', run=True):
+def compile_cpp(code, exe_fname='build/a.out', src_fname='build/tmp.cpp', run=True):
 	subprocess.run(['mkdir', '-p', 'build'])
 	with open(src_fname, 'w') as src_file:
 		src_file.write('\n'.join(code))

@@ -1,7 +1,7 @@
 
 %import common.ESCAPED_STRING
-%import common.SIGNED_FLOAT
-%import common.SIGNED_INT
+// %import common.SIGNED_FLOAT
+// %import common.SIGNED_INT
 %import common.CNAME
 %import common.WS
 %import common.C_COMMENT
@@ -17,6 +17,7 @@
 ?start: program
 
 
+
 program: global_statement*
 
 ?block : "{" statement* "}"
@@ -26,12 +27,13 @@ program: global_statement*
 
 ?global_statement: class_decl
 				| func
+				// | iter
 				| mixin ";" -> mixin_statement
 				| decl ";"
 				| decl_init ";"
 				| global_static_if_elif
 				| global_static_while_loop
-				| global_static_for_loop
+				 | global_static_for_loop
 
 ?statement: 		if_statement
 					| mixin ";" -> mixin_statement
@@ -40,13 +42,16 @@ program: global_statement*
 					| static_while_loop
 					| for_loop
 					| static_for_loop
-					| for_each_loop
 					| rtn ";"
+					| "break" ";" -> break_statement
+					| "continue" ";" -> continue_statement
+					| yield_statement ";"
 					| decl ";"
 					| decl_init ";"
-					| block
+					// | block
 					| assign ";"
 					| func_call ";"
+					| func
 					| "plocal"  ";" -> plocal
 
 
@@ -62,22 +67,44 @@ class_content: class_content_item*
 ?class_content_item: decl_init ";"
 						| decl ";"
 						| func
-						| method
-						| vmethod
+
 
 
 // func: "func" sym "(" decl_arg_list ")"  ":" rtn_type block
 
-func: _func{"func"}
-method: _func{"method"}
-vmethod: _func{"vmethod"}
+// func: _func{"func"} | _func{"fn"}
+// iter: _func{"it"} |
+// method: _func{"method"}
+// vmethod: _func{"vmethod"}
 
 
-_func{kwd}: kwd sym "(" decl_arg_list ")"  ":" rtn_type block
-decl_arg_list: [ sym ":" type ("," sym ":" type)*]
+// _func{kwd}: func_modifier_list kwd sym  ":" rtn_type "(" decl_arg_list ")"    block
+func: func_modifier_list func_type sym  ":" rtn_type "(" decl_arg_list ")"    block
+func_type: "fn" -> fn
+			| "it" -> it
+			| "dec" -> dec
 
-?rtn_type:  type |  void
+// decl_arg_list: [ sym ":" type ("," sym ":" type)*]
+decl_arg_list: [ decl_arg_list_item ("," decl_arg_list_item)*]
+
+?decl_arg_list_item: decl
+					| "VARGS" -> vargs
+					| "KWARGS" -> kwargs
+
+
+// ?rtn_type:  type |  void
+?rtn_type:  type
 void:
+
+
+// type_optional
+
+
+func_modifier_list: func_modifier*
+
+?func_modifier: "static" -> static
+				| "virtual" -> virtual
+
 
 
 func_call: sym "(" call_arg_list ")"
@@ -114,26 +141,36 @@ global_static_while_loop: 	_while_loop{COMPILE_TIME, global_block}
 
 
 
-_for_loop{ mod, blk} : mod "for" for_init ";" for_cond";" for_incr blk
-for_loop: 				_for_loop{ void, block}
-static_for_loop: 		_for_loop{ COMPILE_TIME, block}
-global_static_for_loop: _for_loop{ COMPILE_TIME, global_block}
+// _for_loop{ mod, blk} : mod "for" for_init ";" for_cond";" for_incr blk
+// for_loop: 				_for_loop{ void, block}
+// static_for_loop: 		_for_loop{ COMPILE_TIME, block}
+// global_static_for_loop: _for_loop{ COMPILE_TIME, global_block}
 
 
 
-for_init: for_statement
-for_cond: [exprn]
-for_incr: for_statement
-?for_statement: decl
-				| decl_init
-				| assign
-				|
+// for_init: for_statement
+// for_cond: [exprn]
+// for_incr: for_statement
+// ?for_statement: decl
+// 				| decl_init
+// 				| assign
+// 				|
 
-for_each_loop: "fore" decl "in" exprn block
+// for_each_loop: "fore" decl "in" exprn block
+
+
+for_loop: 					_for_loop{void, 		block}
+static_for_loop: 			_for_loop{COMPILE_TIME, block}
+global_static_for_loop: 	_for_loop{COMPILE_TIME, global_block}
+
+_for_loop{mod, blk_type}: mod "for" decl "in" for_range blk_type
+for_range: exprn [ ".." exprn [".." exprn ]]
+
 
 ?mixin: "mixin" "(" exprn ")"
 
 rtn: "return" [exprn]
+yield_statement: "yield" exprn
 
 
 
@@ -168,7 +205,7 @@ rtn: "return" [exprn]
 		| product "/" item -> div
 
 
-?item: SIGNED_INT -> integer
+?item: INT -> integer
 		| SIGNED_FLOAT -> floating_pt
 		| "+" item
 		| "-" item -> neg
@@ -176,6 +213,8 @@ rtn: "return" [exprn]
 		| ESCAPED_MULTILINE_STRING -> multiline_string
 		| ESCAPED_STRING -> string
 		| lvalue
+		| array
+		| compile_time_exprn
 
 
 ?lvalue: dot_exprn
@@ -190,21 +229,64 @@ rtn: "return" [exprn]
 			| func_call
 
 
+
+
 // ADDRS : "&"+
 
-type : type_modifier* CNAME
+// type : type_modifier* CNAME
+// 		|
 
+
+type : type_modifier* CNAME [index]
+		| compile_time_exprn
+		|
+
+index: "[" [exprn] "]"
+
+
+array: ":" type "{" [exprn_list] "}"
+exprn_list: exprn ( "," exprn )*
+
+
+
+compile_time_exprn: COMPILE_TIME "(" exprn ")"
 
 ?type_modifier 	: AMP+ -> address_of
 				| COMPILE_TIME -> compile_time
 
-COMPILE_TIME : "#"
-DEREF: "*"
-AMP : "&"
-sym: CNAME
 
 
 _MULTILINE_STRING_INNER: /(.|\n)*?/
 _MULTILINE_STRING_ESC_INNER: _MULTILINE_STRING_INNER /(?<!\\)(\\\\)*?/
 ESCAPED_MULTILINE_STRING : "\"\"\"" _MULTILINE_STRING_ESC_INNER "\"\"\""
 
+_DIGIT: "0".."9"
+_HEXDIGIT: "a".."f"|"A".."F"|_DIGIT
+_BINDIGIT: "0" .. "1"
+_OCTALDIGIT: "0" .. "7"
+
+_HEX_INT: "0x" (_HEXDIGIT | "_")+
+_BIN_INT: "0b" (_BINDIGIT | "_")+
+_OCTAL_INT: "0o" (_OCTALDIGIT | "_")+
+_DECI_INT: (_DIGIT | "_")+
+
+INT: _HEX_INT
+	| _BIN_INT
+	| _OCTAL_INT
+	| _SIGNED_DECI_INT
+
+
+_SIGNED_DECI_INT: ["+"|"-"] _DECI_INT
+
+_DECI_FLOAT: _DECI_INT "." _DECI_INT
+
+_EXP: ("e"|"E") _SIGNED_DECI_INT
+FLOAT: 	_DECI_INT _EXP
+		| _DECI_FLOAT _EXP?
+SIGNED_FLOAT: ["+"|"-"] FLOAT
+
+
+COMPILE_TIME : "#"
+DEREF: "*"
+AMP : "&"
+sym: CNAME
