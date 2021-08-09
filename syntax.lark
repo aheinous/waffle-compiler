@@ -33,7 +33,9 @@ program: global_statement*
 				| decl_init ";"
 				| global_static_if_elif
 				| global_static_while_loop
-				 | global_static_for_loop
+				| global_static_for_loop
+				| foreign_code
+				| decorator
 
 ?statement: 		if_statement
 					| mixin ";" -> mixin_statement
@@ -42,9 +44,12 @@ program: global_statement*
 					| static_while_loop
 					| for_loop
 					| static_for_loop
+					| switch_statement
+					| case_statement
 					| rtn ";"
 					| "break" ";" -> break_statement
 					| "continue" ";" -> continue_statement
+					| "fallthru" ";" -> fallthru_statement
 					| yield_statement ";"
 					| decl ";"
 					| decl_init ";"
@@ -52,6 +57,8 @@ program: global_statement*
 					| assign ";"
 					| func_call ";"
 					| func
+					| foreign_code
+					| decorator
 					| "plocal"  ";" -> plocal
 
 
@@ -68,7 +75,7 @@ class_content: class_content_item*
 						| decl ";"
 						| func
 
-
+decorator: "@" sym (class_decl | func)
 
 // func: "func" sym "(" decl_arg_list ")"  ":" rtn_type block
 
@@ -131,6 +138,11 @@ _after_if{mods, blk}: else_statement{mods, blk}
 		| elif_statement{mods, blk}
 
 
+switch_statement: "switch" exprn block
+
+case_statement: "case" exprn block
+
+
 
 
 
@@ -174,6 +186,8 @@ yield_statement: "yield" exprn
 
 
 
+
+foreign_code: "foreign" "(" sym ")" FOREIGN_CODE
 
 
 ?exprn: or_exprn
@@ -251,7 +265,7 @@ exprn_list: exprn ( "," exprn )*
 
 compile_time_exprn: COMPILE_TIME "(" exprn ")"
 
-?type_modifier 	: AMP+ -> address_of
+?type_modifier 	: AMP+ -> ref
 				| COMPILE_TIME -> compile_time
 
 
@@ -259,6 +273,10 @@ compile_time_exprn: COMPILE_TIME "(" exprn ")"
 _MULTILINE_STRING_INNER: /(.|\n)*?/
 _MULTILINE_STRING_ESC_INNER: _MULTILINE_STRING_INNER /(?<!\\)(\\\\)*?/
 ESCAPED_MULTILINE_STRING : "\"\"\"" _MULTILINE_STRING_ESC_INNER "\"\"\""
+
+
+_FOREIGN_CODE_INNER: /(.|\n)*?/
+FOREIGN_CODE: "```" _FOREIGN_CODE_INNER "```"
 
 _DIGIT: "0".."9"
 _HEXDIGIT: "a".."f"|"A".."F"|_DIGIT

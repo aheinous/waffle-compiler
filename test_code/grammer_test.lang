@@ -154,3 +154,73 @@ dec make_special: (cls:#class) {
 		}
 	}
 }
+
+
+it iteratorExample:u8(n:u8){
+	for x :in 0..n {
+		yield x;
+		yield 2*x;
+	}
+}
+
+fn thing : () {
+	x:i8 = 0b0101_0011 ;
+	y:i64 = 0o01374 ;
+	z:f32 = 0.01e10 ;
+	w:u16 = 0x1234_4312 ;
+
+	p:&void = null ;
+
+	foreign(cpp)```
+
+	std::cout << "something " << ${x} << std::endl;
+
+	SOME_C_MACRO(y);
+
+	${p} = new CppThing();
+
+	```
+}
+
+
+@make_special
+class Foo {
+
+	someField:int[32];
+
+	someOtherField: u8[4] = :{1, 2, 3, 4};
+
+
+	fn init: ()  {
+		// ...
+	}
+
+	fn thing:(x:i32, y:i64, z:u16) {
+		#if x.isStatic() {
+			switch y {
+				# for i: in 0..x..2 {
+					case i {
+						mixin(genCaseICode(i));
+						fallthru;
+					}
+					case i+1 {
+						mixin(genCaseICode(i));
+					}
+				}
+			}
+		}
+		#else {
+			// ...
+		}
+	}
+
+}
+
+
+class Foo(#size:int) : ParentClass(#someTemplateArg)
+				  : someInterface()
+{
+	static
+	virtual
+	fn init(f:float){}
+}

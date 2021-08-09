@@ -3,7 +3,6 @@ from instruction_block import Block
 from typed_data import RValue, TSym
 
 
-
 class Func:
     def __init__(self, typed_sym, args, instrns, pos):
         assert isinstance(typed_sym, TSym)
@@ -17,7 +16,6 @@ class Func:
         return self.typed_sym.type.rtnType
 
 
-
 class Instrn:
     def __init__(self, pos):
         self.pos = pos
@@ -25,7 +23,6 @@ class Instrn:
 
     def _add_child_scope(self, name, child_scope):
         self.child_scopes[name] = child_scope
-
 
     def __repr__(self):
         s = self.__class__.__name__ + ' '
@@ -40,7 +37,6 @@ class BinOp(Instrn):
         self.op = op
 
 
-
 class UnaryOp(Instrn):
     def __init__(self, op, pos):
         super().__init__(pos)
@@ -52,13 +48,11 @@ class Assign(Instrn):
         super().__init__(pos)
 
 
-
 class Decl(Instrn):
     def __init__(self, typed_sym, pos):
         super().__init__(pos)
         assert isinstance(typed_sym, TSym)
         self.typed_sym = typed_sym
-
 
 
 class Pushi(Instrn):
@@ -68,12 +62,10 @@ class Pushi(Instrn):
         self.value = value
 
 
-
 class Push(Instrn):
     def __init__(self, sym, pos):
         super().__init__(pos)
         self.sym = sym
-
 
 
 class InitFunc(Instrn):
@@ -82,8 +74,6 @@ class InitFunc(Instrn):
         self.typed_sym = typed_sym
         self.typed_func = typed_func
         self._add_child_scope('func_blk', typed_func.value().instrns)
-
-
 
 
 class Call(Instrn):
@@ -102,6 +92,7 @@ class Rtn(Instrn):
 class Pop(Instrn):
     pass
 
+
 class IfElse(Instrn):
     def __init__(self, condBlk, ifBlk, elseBlk, pos):
         super().__init__(pos)
@@ -111,7 +102,6 @@ class IfElse(Instrn):
 
         self.ifBlk = ifBlk
         self.elseBlk = elseBlk
-
 
 
 class WhileLoop(Instrn):
@@ -128,6 +118,7 @@ class Mixin(Instrn):
         super().__init__(pos)
         self.exprn = exprn
 
+
 class MixinStatements(Instrn):
     def __init__(self, statements, pos):
         super().__init__(pos)
@@ -135,10 +126,10 @@ class MixinStatements(Instrn):
 
 
 class ClassDecl(Instrn):
-    def __init__(   self, t_sym:TSym,
-                    # preUsrInit:Block,
-                    contents:Block,
-                    pos:Position):
+    def __init__(self, t_sym: TSym,
+                 # preUsrInit:Block,
+                 contents: Block,
+                 pos: Position):
         super().__init__(pos)
         self.t_sym = t_sym
         # self.preUsrInit = preUsrInit
@@ -159,10 +150,12 @@ class ClassDecl(Instrn):
     def type(self):
         return self.t_sym.type
 
+
 class ObjectInit(Instrn):
-    def __init__(self, type_, pos:Position):
+    def __init__(self, type_, pos: Position):
         super().__init__(pos)
         self.type = type_
+
 
 class PLocal(Instrn):
     def __init__(self, pos):

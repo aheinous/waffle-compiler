@@ -78,7 +78,7 @@ class Foo {
 }
 
 
-class (#size:int) : ParentClass(#someTemplateArg)
+class Foo(#size:int) : ParentClass(#someTemplateArg)
 				  : someInterface()
 {
 	static
